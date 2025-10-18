@@ -1,0 +1,22 @@
+<!-- ===== FLOAT CARD vicino al nodo ===== -->
+<div id="node-card" class="card hidden">
+  <button class="close" aria-label="Chiudi">×</button>
+
+  <div class="pill">Nodo selezionato</div>
+  <h3 id="card-title">Titolo nodo</h3>
+
+  <div id="card-tags" class="tags">
+    <span class="tag">tempo</span>
+    <span class="tag">filosofia</span>
+  </div>
+
+  <p id="card-body">
+    Qui appariranno note/collegamenti rapidi al tema del nodo. Tocca 🎙️ per dettare una domanda.
+  </p>
+
+  <div class="actions">
+    <button class="btn" id="ask-btn">Chiedi</button>
+    <button class="btn ghost" id="voice-btn">🎙️</button>
+    <button class="btn ghost" id="save-btn">💾</button>
+  </div>
+</div>
