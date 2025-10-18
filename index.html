@@ -179,10 +179,17 @@ function step(){
 requestAnimationFrame(step);
 // === Spirito minimo di AiLov ===
 // Mostra la finestra quando si clicca un nodo
+const cvs = document.getElementById('nebula');
 cvs.addEventListener('click', (event) => {
-  const card = document.getElementById('overlay_card');
+  const card = document.getElementById('overlay-card');
+  const name = card.querySelector('#node-name');
+  name.textContent = 'Nodo selezionato ✨';
   card.style.display = 'block';
-  card.querySelector('#node-name').innerText = 'Nodo selezionato ✨';
+});
+
+// Chiudi la finestra quando clicchi il bottone "Chiudi"
+document.getElementById('closeCard').addEventListener('click', () => {
+  document.getElementById('overlay-card').style.display = 'none';
 });
 </script>
 </body>
