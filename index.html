@@ -197,23 +197,11 @@ function step(){
 }
 requestAnimationFrame(step);
 // === Spirito minimo di AiLov ===
-// Quando clicchi un nodo, appare la finestra “overlay-card”
-
-document.addEventListener('click', (e) => {
-  const card = document.getElementById('overlay-card');
-  const nodeName = document.getElementById('node-name');
-  
-  if (!card || !nodeName) return; // se la card non esiste, esci
-  
-  nodeName.textContent = "Nodo misterioso ✦";
+// Mostra la finestra quando si clicca un nodo
+cvs.addEventListener('click', (event) => {
+  const card = document.getElementById('overlay_card');
   card.style.display = 'block';
-});
-
-document.addEventListener('click', (e) => {
-  if (e.target.id === 'closeCard') {
-    const card = document.getElementById('overlay-card');
-    card.style.display = 'none';
-  }
+  card.querySelector('#node-name').innerText = 'Nodo selezionato ✨';
 });
 </script>
 </body>
