@@ -178,18 +178,28 @@ function step(){
 }
 requestAnimationFrame(step);
 // === Spirito minimo di AiLov ===
-// Mostra la finestra quando si clicca un nodo
+// Mostra la finestra (popup) dove tocchi nella Nebula
 const cvs = document.getElementById('nebula');
+const card = document.getElementById('overlay-card');
+const nameEl = card.querySelector('#node-name');
+const closeBtn = document.getElementById('closeCard');
+
 cvs.addEventListener('click', (event) => {
-  const card = document.getElementById('overlay-card');
-  const name = card.querySelector('#node-name');
-  name.textContent = 'Nodo selezionato ✨';
+  // Calcola posizione del click
+  const rect = cvs.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+
+  // Posiziona e mostra la finestra
+  card.style.left = `${x}px`;
+  card.style.top = `${y}px`;
   card.style.display = 'block';
+  nameEl.textContent = 'Nodo selezionato ✨';
 });
 
-// Chiudi la finestra quando clicchi il bottone "Chiudi"
-document.getElementById('closeCard').addEventListener('click', () => {
-  document.getElementById('overlay-card').style.display = 'none';
+// Chiudi la finestra con il pulsante
+closeBtn.addEventListener('click', () => {
+  card.style.display = 'none';
 });
 </script>
 </body>
