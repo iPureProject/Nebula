@@ -177,30 +177,18 @@ function step(){
   requestAnimationFrame(step);
 }
 requestAnimationFrame(step);
-// === Spirito minimo di AiLov ===
-// Mostra la finestra (popup) dove tocchi nella Nebula
-const cvs = document.getElementById('nebula');
-const card = document.getElementById('overlay-card');
-const nameEl = card.querySelector('#node-name');
-const closeBtn = document.getElementById('closeCard');
-
-cvs.addEventListener('click', (event) => {
-  // Calcola posizione del click
-  const rect = cvs.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
-
-  // Posiziona e mostra la finestra
-  card.style.left = `${x}px`;
-  card.style.top = `${y}px`;
-  card.style.display = 'block';
-  nameEl.textContent = 'Nodo selezionato ✨';
-});
-
-// Chiudi la finestra con il pulsante
-closeBtn.addEventListener('click', () => {
-  card.style.display = 'none';
-});
+  <!-- Finestra trasparente (overlay) -->
+<div id="overlay-card"
+     style="display:none; position:absolute; top:10%; left:10%; right:10%;
+            background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.3);
+            border-radius:20px; padding:20px; color:white; font-family:sans-serif;
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); z-index:5;">
+  <h2 id="node-name" style="margin:0 0 10px 0; font-size:18px;">Nodo</h2>
+  <button id="closeCard"
+          style="background:none; border:1px solid white; color:white; border-radius:10px; padding:6px 12px;">
+    Chiudi
+  </button>
+</div>
 </script>
 </body>
 </html>
