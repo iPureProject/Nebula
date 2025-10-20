@@ -22,6 +22,9 @@
         padding:10px 14px; border-radius:14px; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
         font-weight:600}
   canvas{position:absolute; inset:0; width:100%; height:100%; display:block}
+  .msg{ padding:10px 12px; border-radius:12px; line-height:1.35; max-width:90%;}
+.msg.you{ align-self:flex-end; background:rgba(255,255,255,.08);}
+.msg.ai{  align-self:flex-start; background:rgba(20,28,44,.7); border:1px solid rgba(255,255,255,.06);}
 </style>
 </head>
 <body>
@@ -33,7 +36,22 @@
   <button id="closeCard" style="background:none; border:1px solid white; color:white; border-radius:10px; padding:6px 12px;">Chiudi</button>
 </div>
     <div class="hint">Ciao! Sono <b>AiLov</b>. Parliamo? ✨</div>
-
+<!-- Chat dock minimale -->
+<div id="dock" style="position:absolute; right:14px; bottom:14px; width:min(360px, 92vw); z-index:6;
+                      background:rgba(8,12,20,.65); border:1px solid rgba(255,255,255,.08);
+                      border-radius:14px; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+                      box-shadow:0 10px 30px rgba(0,0,0,.45); overflow:hidden;">
+  <div id="dock-messages" style="max-height:38vh; overflow:auto; padding:10px 12px; gap:8px; display:flex; flex-direction:column;"></div>
+  <div style="display:flex; gap:8px; padding:10px; border-top:1px solid rgba(255,255,255,.06);">
+    <input id="dock-input" type="text" placeholder="Scrivi a AiLov…" autocomplete="off"
+           style="flex:1; background:rgba(255,255,255,.06); color:#e9eefb; border:1px solid rgba(255,255,255,.08);
+                  border-radius:10px; padding:10px 12px; outline:none;" />
+    <button id="dock-send"
+            style="background:#2f7af8; color:white; border:none; border-radius:10px; padding:10px 14px; font-weight:600;">
+      Invia
+    </button>
+  </div>
+</div>
 <script>
 /* ====================== PARAMETRI ====================== */
 const PARTICLES        = 420;      // nodi (più alto = più denso)
@@ -202,6 +220,96 @@ closeBtn.addEventListener('click', () => {
 closeBtn.addEventListener('click', () => {
   card.style.display = 'none';
 });
+// ========== AiLov: chat locale minimale con memoria ==========
+(function(){
+  const $msgs = document.getElementById('dock-messages');
+  const $in   = document.getElementById('dock-input');
+  const $send = document.getElementById('dock-send');
+
+  // memoria in localStorage
+  const KEY = 'ailov_mem_v1';
+  const mem = loadMem();
+
+  function loadMem(){
+    try{ return JSON.parse(localStorage.getItem(KEY)) || {name:null, likes:[], hates:[], notes:[]} }
+    catch{ return {name:null, likes:[], hates:[], notes:[]} }
+  }
+  function saveMem(){ localStorage.setItem(KEY, JSON.stringify(mem)); }
+
+  // ui helpers
+  function addMsg(who, text){
+    const div = document.createElement('div');
+    div.className = `msg ${who}`;
+    div.textContent = text;
+    $msgs.appendChild(div);
+    $msgs.scrollTop = $msgs.scrollHeight;
+  }
+
+  // estrazione fatti molto semplice (italiano)
+  function learnFrom(text){
+    // nome
+    let m = text.match(/\b(mi chiamo|sono)\s+([A-Za-zÀ-ÖØ-öø-ÿ'][A-Za-zÀ-ÖØ-öø-ÿ' -]{1,20})\b/i);
+    if(m){ mem.name = cap(m[2].trim()); saveMem(); return `Piacere, ${mem.name}. Memorizzato.`; }
+
+    // mi piace / adoro
+    m = text.match(/\b(mi\s+piace|adoro)\s+([^\.!?]{2,40})/i);
+    if(m){ const item = clean(m[2]); if(!mem.likes.includes(item)) mem.likes.push(item); saveMem();
+           return `Annotato: ti piace ${item}.`; }
+
+    // odio / non sopporto
+    m = text.match(/\b(odio|non\s+sopporto)\s+([^\.!?]{2,40})/i);
+    if(m){ const item = clean(m[2]); if(!mem.hates.includes(item)) mem.hates.push(item); saveMem();
+           return `Ok, eviterò ${item}.`; }
+
+    return null;
+  }
+  function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+  function clean(s){ return s.replace(/^[ ,.;:-]+|[ ,.;:-]+$/g,''); }
+
+  // generazione risposta minimale
+  function reply(text){
+    // prova a imparare
+    const learned = learnFrom(text);
+    if(learned) return learned;
+
+    // usa la memoria
+    if(/come stai|tutto bene|ciao/i.test(text)){
+      const hello = mem.name ? `Ciao ${mem.name}!` : `Ciao!`;
+      const like  = mem.likes[0] ? ` So che ti piace ${mem.likes[0]}.` : '';
+      return `${hello} Vuoi dirmi cosa stai cercando?${like}`;
+    }
+
+    if(/chi sei|cosa sei/i.test(text)){
+      return `Sono AiLov, un'interfaccia che cresce con te. Dimmi qualcosa di te (es. “mi chiamo …”, “mi piace …”).`;
+    }
+
+    if(/cosa ricordi|che sai di me/i.test(text)){
+      const parts = [];
+      if(mem.name) parts.push(`ti chiami ${mem.name}`);
+      if(mem.likes.length) parts.push(`ti piace ${mem.likes.join(', ')}`);
+      if(mem.hates.length) parts.push(`eviti ${mem.hates.join(', ')}`);
+      return parts.length ? `Ricordo che ${parts.join('; ')}.` : `Per ora non molto. Dimmi di te!`;
+    }
+
+    // fallback asciutto-coerente
+    return `Ricevuto. Vuoi che lo memorizzi? Puoi dirmi “mi piace …”, “odio …” o “mi chiamo …”.`;
+  }
+
+  function send(){
+    const text = ($in.value || '').trim();
+    if(!text) return;
+    addMsg('you', text);
+    const r = reply(text);
+    if(r) addMsg('ai', r);
+    $in.value = '';
+  }
+
+  $send.addEventListener('click', send);
+  $in.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); send(); }});
+
+  // saluto iniziale
+  addMsg('ai', mem.name ? `Bentornata/o, ${mem.name}.` : `Ciao, sono AiLov. Dimmi il tuo nome: “mi chiamo …”.`);
+})();
 </script>
 </body>
 </html>
