@@ -25,6 +25,23 @@
   .msg{ padding:10px 12px; border-radius:12px; line-height:1.35; max-width:90%;}
 .msg.you{ align-self:flex-end; background:rgba(255,255,255,.08);}
 .msg.ai{  align-self:flex-start; background:rgba(20,28,44,.7); border:1px solid rgba(255,255,255,.06);}
+.voice-ui{
+  position:absolute; right:16px; bottom:16px; display:flex; gap:10px; z-index:3;
+}
+.voice-ui button{
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.18);
+  color:#fff; padding:10px 12px; border-radius:12px;
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  font-weight:600;
+}
+.voice-ui button:disabled{ opacity:.45 }
+.hint-mini{
+  position:absolute; right:16px; bottom:62px;
+  background:rgba(10,14,22,.65); border:1px solid rgba(255,255,255,.12);
+  padding:6px 10px; border-radius:10px; font-size:12px;
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+}
 </style>
 </head>
 <body>
@@ -36,6 +53,12 @@
   <button id="closeCard" style="background:none; border:1px solid white; color:white; border-radius:10px; padding:6px 12px;">Chiudi</button>
 </div>
     <div class="hint">Ciao! Sono <b>AiLov</b>. Parliamo? ✨</div>
+<!-- Voice UI -->
+<div class="voice-ui">
+  <button id="btnSpeak" title="Leggi la risposta">🔊</button>
+  <button id="btnMic"   title="Parla con AiLov">🎙️</button>
+  <span id="micHint" class="hint-mini" hidden>Ascolto… parla pure</span>
+</div>
 <!-- Chat dock minimale -->
 <div id="dock" style="position:absolute; right:14px; bottom:14px; width:min(360px, 92vw); z-index:6;
                       background:rgba(8,12,20,.65); border:1px solid rgba(255,255,255,.08);
@@ -310,6 +333,87 @@ closeBtn.addEventListener('click', () => {
   // saluto iniziale
   addMsg('ai', mem.name ? `Bentornata/o, ${mem.name}.` : `Ciao, sono AiLov. Dimmi il tuo nome: “mi chiamo …”.`);
 })();
+/* ====== Voce di AiLov (TTS) ====== */
+let lastReply = 'Ciao, sono AiLov. Dimmi il tuo nome: “mi chiamo …”.';
+
+function speak(text){
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang   = 'it-IT';
+  u.rate   = 1.0;
+  u.pitch  = 1.05;
+  u.volume = 1.0;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+}
+
+// Leggi l’ultima risposta
+document.getElementById('btnSpeak').addEventListener('click', () => {
+  speak(lastReply);
+});
+
+/* ====== Microfono (se supportato) ====== */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const micBtn  = document.getElementById('btnMic');
+const micHint = document.getElementById('micHint');
+
+let rec = null;
+if (SR){
+  rec = new SR();
+  rec.lang = 'it-IT';
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+
+  rec.onstart = () => { micHint.hidden = false; };
+  rec.onend   = () => { micHint.hidden = true; };
+  rec.onerror = () => { micHint.textContent = 'Nessun audio'; setTimeout(()=>micHint.hidden=true, 1200); };
+
+  rec.onresult = (e) => {
+    const text = e.results[0][0].transcript.trim();
+    handleUserText(text);
+  };
+
+  micBtn.addEventListener('click', () => {
+    if (speechSynthesis.speaking) speechSynthesis.cancel();
+    try { rec.start(); } catch(_) {}
+  });
+}else{
+  micBtn.disabled = true;
+  micBtn.title = 'Il microfono non è supportato su questo browser';
+}
+
+/* ====== Cervello minimo: capisce “mi chiamo …” ====== */
+function handleUserText(text){
+  let reply;
+
+  // “mi chiamo Marina” → estrae il nome
+  const m = text.toLowerCase().match(/mi chiamo\s+([a-zà-ù']+)/i);
+  if (m){
+    const name = m[1].replace(/^\w/, c => c.toUpperCase());
+    localStorage.setItem('aiLov:name', name);
+    reply = `Piacere, ${name}. Ho memorizzato il tuo nome.`;
+  } else {
+    reply = `Ho sentito: “${text}”. Sto imparando…`;
+  }
+
+  lastReply = reply;
+  showOverlayCenter(reply);
+  speak(reply);
+}
+
+/* ====== Mostra il popup al centro con un messaggio ====== */
+function showOverlayCenter(msg){
+  const card   = document.getElementById('overlay-card');
+  const nameEl = document.getElementById('node-name');
+  nameEl.textContent = msg;
+  card.style.left = '10%';
+  card.style.top  = '10%';
+  card.style.display = 'block';
+}
+
+// Chiudi col pulsante esistente
+document.getElementById('closeCard').addEventListener('click', () => {
+  document.getElementById('overlay-card').style.display = 'none';
+});
 </script>
 </body>
 </html>
