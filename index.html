@@ -188,6 +188,28 @@ requestAnimationFrame(step);
     Chiudi
   </button>
 </div>
+// === Spirito minimo di AiLov ===
+const card    = document.getElementById('overlay-card');
+const nameEl  = document.getElementById('node-name');
+const closeBtn= document.getElementById('closeCard');
+const cvs     = document.getElementById('nebula');
+
+// Quando tocchi nella Nebula, mostra la finestra
+cvs.addEventListener('click', (event) => {
+  const rect = cvs.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+
+  card.style.left = `${x + 12}px`;
+  card.style.top  = `${y + 12}px`;
+  card.style.display = 'block';
+  nameEl.textContent = 'Nodo selezionato ✨';
+});
+
+// Chiudi la finestra
+closeBtn.addEventListener('click', () => {
+  card.style.display = 'none';
+});
 </script>
 </body>
 </html>
