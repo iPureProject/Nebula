@@ -42,15 +42,54 @@
   padding:6px 10px; border-radius:10px; font-size:12px;
   backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
 }
+/* === AiLov Console (unica finestra) === */
+.console {
+  position:absolute; right:18px; bottom:18px; z-index:5;
+  width:min(520px, 92vw);
+  background:rgba(10,14,22,.55);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:16px; padding:12px;
+  backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  box-shadow:0 10px 30px rgba(0,0,0,.45);
+}
+.console .log {
+  max-height:min(40vh, 360px); overflow:auto; padding:4px 2px 8px 2px;
+}
+.msg { margin:6px 0; display:flex; gap:8px; }
+.msg .you, .msg .ai {
+  padding:10px 12px; border-radius:12px; line-height:1.35;
+  border:1px solid rgba(255,255,255,.06);
+}
+.msg .you { background:rgba(255,255,255,.06); }
+.msg .ai  { background:rgba(20,28,44,.55); }
+.msg .tag { opacity:.7; font-size:.85rem; min-width:3.6rem }
+.prompt {
+  display:flex; gap:8px; margin-top:8px;
+}
+.prompt input {
+  flex:1; height:40px; border-radius:10px; border:1px solid rgba(255,255,255,.08);
+  background:rgba(0,0,0,.35); color:#e9eefb; padding:0 12px;
+}
+.prompt button {
+  padding:0 14px; border-radius:10px; border:1px solid rgba(255,255,255,.1);
+  background:#1f6fff; color:white; height:40px;
+}
+.prompt .ghost {
+  background:transparent; color:#e9eefb; border-color:rgba(255,255,255,.18);
+}
 </style>
 </head>
 <body>
   <div class="wrap">
     <header>AiLov Nebula Console</header>
     <canvas id="nebula"></canvas>
-    <div id="overlay-card" style="display:none; position:absolute; top:10%; left:10%; right:10%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.3); border-radius:20px; padding:20px; color:white; font-family:sans-serif;">
-  <h2 id="node-name"></h2>
-  <button id="closeCard" style="background:none; border:1px solid white; color:white; border-radius:10px; padding:6px 12px;">Chiudi</button>
+<div id="ailov-console" class="console">
+  <div id="log" class="log" aria-live="polite"></div>
+  <form id="promptBar" class="prompt">
+    <button id="micBtn" type="button" class="ghost" title="Parla">🎤</button>
+    <input id="prompt" autocomplete="off" placeholder="Scrivi o parla con AiLov…" />
+    <button id="sendBtn" type="submit">Invia</button>
+  </form>
 </div>
     <div class="hint">Ciao! Sono <b>AiLov</b>. Parliamo? ✨</div>
 <!-- Voice UI -->
@@ -219,200 +258,121 @@ function step(){
 requestAnimationFrame(step);
   // Finestra trasparente (overlay) 
 
-/* === Overlay behaviour (popup) === */
-const card     = document.getElementById('overlay-card');
-const nameEl   = document.getElementById('node-name');
-const closeBtn = document.getElementById('closeCard');
+/* === AiLov Console (testo+voce+tap) === */
+const logEl    = document.getElementById('log');
+const promptEl = document.getElementById('prompt');
+const formEl   = document.getElementById('promptBar');
+const micBtn   = document.getElementById('micBtn');
 
-cvs.addEventListener('click', (event) => {
-  const rect = cvs.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
+// memoria semplicissima in locale
+const memory = {
+  get name() { return localStorage.getItem('ailov_name') || null; },
+  set name(v){ localStorage.setItem('ailov_name', v); }
+};
 
-  card.style.left = `${x + 12}px`;
-  card.style.top  = `${y + 12}px`;
-  card.style.display = 'block';
-  nameEl.textContent = 'Nodo selezionato ✨';
-});
-
-closeBtn.addEventListener('click', () => {
-  card.style.display = 'none';
-});
-
-// Chiudi la finestra
-closeBtn.addEventListener('click', () => {
-  card.style.display = 'none';
-});
-// ========== AiLov: chat locale minimale con memoria ==========
-(function(){
-  const $msgs = document.getElementById('dock-messages');
-  const $in   = document.getElementById('dock-input');
-  const $send = document.getElementById('dock-send');
-
-  // memoria in localStorage
-  const KEY = 'ailov_mem_v1';
-  const mem = loadMem();
-
-  function loadMem(){
-    try{ return JSON.parse(localStorage.getItem(KEY)) || {name:null, likes:[], hates:[], notes:[]} }
-    catch{ return {name:null, likes:[], hates:[], notes:[]} }
-  }
-  function saveMem(){ localStorage.setItem(KEY, JSON.stringify(mem)); }
-
-  // ui helpers
-  function addMsg(who, text){
-    const div = document.createElement('div');
-    div.className = `msg ${who}`;
-    div.textContent = text;
-    $msgs.appendChild(div);
-    $msgs.scrollTop = $msgs.scrollHeight;
-  }
-
-  // estrazione fatti molto semplice (italiano)
-  function learnFrom(text){
-    // nome
-    let m = text.match(/\b(mi chiamo|sono)\s+([A-Za-zÀ-ÖØ-öø-ÿ'][A-Za-zÀ-ÖØ-öø-ÿ' -]{1,20})\b/i);
-    if(m){ mem.name = cap(m[2].trim()); saveMem(); return `Piacere, ${mem.name}. Memorizzato.`; }
-
-    // mi piace / adoro
-    m = text.match(/\b(mi\s+piace|adoro)\s+([^\.!?]{2,40})/i);
-    if(m){ const item = clean(m[2]); if(!mem.likes.includes(item)) mem.likes.push(item); saveMem();
-           return `Annotato: ti piace ${item}.`; }
-
-    // odio / non sopporto
-    m = text.match(/\b(odio|non\s+sopporto)\s+([^\.!?]{2,40})/i);
-    if(m){ const item = clean(m[2]); if(!mem.hates.includes(item)) mem.hates.push(item); saveMem();
-           return `Ok, eviterò ${item}.`; }
-
-    return null;
-  }
-  function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
-  function clean(s){ return s.replace(/^[ ,.;:-]+|[ ,.;:-]+$/g,''); }
-
-  // generazione risposta minimale
-  function reply(text){
-    // prova a imparare
-    const learned = learnFrom(text);
-    if(learned) return learned;
-
-    // usa la memoria
-    if(/come stai|tutto bene|ciao/i.test(text)){
-      const hello = mem.name ? `Ciao ${mem.name}!` : `Ciao!`;
-      const like  = mem.likes[0] ? ` So che ti piace ${mem.likes[0]}.` : '';
-      return `${hello} Vuoi dirmi cosa stai cercando?${like}`;
-    }
-
-    if(/chi sei|cosa sei/i.test(text)){
-      return `Sono AiLov, un'interfaccia che cresce con te. Dimmi qualcosa di te (es. “mi chiamo …”, “mi piace …”).`;
-    }
-
-    if(/cosa ricordi|che sai di me/i.test(text)){
-      const parts = [];
-      if(mem.name) parts.push(`ti chiami ${mem.name}`);
-      if(mem.likes.length) parts.push(`ti piace ${mem.likes.join(', ')}`);
-      if(mem.hates.length) parts.push(`eviti ${mem.hates.join(', ')}`);
-      return parts.length ? `Ricordo che ${parts.join('; ')}.` : `Per ora non molto. Dimmi di te!`;
-    }
-
-    // fallback asciutto-coerente
-    return `Ricevuto. Vuoi che lo memorizzi? Puoi dirmi “mi piace …”, “odio …” o “mi chiamo …”.`;
-  }
-
-  function send(){
-    const text = ($in.value || '').trim();
-    if(!text) return;
-    addMsg('you', text);
-    const r = reply(text);
-    if(r) addMsg('ai', r);
-    $in.value = '';
-  }
-
-  $send.addEventListener('click', send);
-  $in.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); send(); }});
-
-  // saluto iniziale
-  addMsg('ai', mem.name ? `Bentornata/o, ${mem.name}.` : `Ciao, sono AiLov. Dimmi il tuo nome: “mi chiamo …”.`);
-})();
-/* ====== Voce di AiLov (TTS) ====== */
-let lastReply = 'Ciao, sono AiLov. Dimmi il tuo nome: “mi chiamo …”.';
+function appendMsg(role, text){
+  const row = document.createElement('div');
+  row.className = 'msg';
+  const tag = document.createElement('div');
+  tag.className = 'tag';
+  tag.textContent = role === 'you' ? 'Tu' : 'AiLov';
+  const bubble = document.createElement('div');
+  bubble.className = role === 'you' ? 'you' : 'ai';
+  bubble.textContent = text;
+  row.append(tag, bubble);
+  logEl.append(row);
+  logEl.scrollTop = logEl.scrollHeight;
+}
 
 function speak(text){
+  if(!('speechSynthesis' in window)) return;
   const u = new SpeechSynthesisUtterance(text);
-  u.lang   = 'it-IT';
-  u.rate   = 1.0;
-  u.pitch  = 1.05;
-  u.volume = 1.0;
-  speechSynthesis.cancel();
-  speechSynthesis.speak(u);
+  u.lang = 'it-IT';
+  u.rate = 1.02; u.pitch = 1.0; u.volume = 1.0;
+  speechSynthesis.cancel(); speechSynthesis.speak(u);
 }
 
-// Leggi l’ultima risposta
-document.getElementById('btnSpeak').addEventListener('click', () => {
-  speak(lastReply);
-});
-
-/* ====== Microfono (se supportato) ====== */
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-const micBtn  = document.getElementById('btnMic');
-const micHint = document.getElementById('micHint');
-
-let rec = null;
-if (SR){
-  rec = new SR();
-  rec.lang = 'it-IT';
-  rec.interimResults = false;
-  rec.maxAlternatives = 1;
-
-  rec.onstart = () => { micHint.hidden = false; };
-  rec.onend   = () => { micHint.hidden = true; };
-  rec.onerror = () => { micHint.textContent = 'Nessun audio'; setTimeout(()=>micHint.hidden=true, 1200); };
-
-  rec.onresult = (e) => {
-    const text = e.results[0][0].transcript.trim();
-    handleUserText(text);
-  };
-
-  micBtn.addEventListener('click', () => {
-    if (speechSynthesis.speaking) speechSynthesis.cancel();
-    try { rec.start(); } catch(_) {}
-  });
-}else{
-  micBtn.disabled = true;
-  micBtn.title = 'Il microfono non è supportato su questo browser';
+function greet(){
+  if(memory.name){
+    const t = `Bentornata/o, ${memory.name}.`;
+    appendMsg('ai', t); speak(t);
+  }else{
+    const t = 'Ciao, sono AiLov. Dimmi il tuo nome: “mi chiamo …”.';
+    appendMsg('ai', t); speak(t);
+  }
 }
+greet();
 
-/* ====== Cervello minimo: capisce “mi chiamo …” ====== */
-function handleUserText(text){
-  let reply;
+// regole minime: capisce “mi chiamo X”, “cosa vedi”, “ciao”
+function brain(input){
+  const msg = input.trim();
+  if(!msg) return null;
 
-  // “mi chiamo Marina” → estrae il nome
-  const m = text.toLowerCase().match(/mi chiamo\s+([a-zà-ù']+)/i);
-  if (m){
-    const name = m[1].replace(/^\w/, c => c.toUpperCase());
-    localStorage.setItem('aiLov:name', name);
-    reply = `Piacere, ${name}. Ho memorizzato il tuo nome.`;
-  } else {
-    reply = `Ho sentito: “${text}”. Sto imparando…`;
+  const m = msg.match(/mi chiamo\s+([a-zà-ù’' ]{2,})/i);
+  if(m){
+    const name = m[1].replace(/[’']/g,"'").trim();
+    memory.name = name.charAt(0).toUpperCase() + name.slice(1);
+    return `Piacere, ${memory.name}. Memorizzato.`;
   }
 
-  lastReply = reply;
-  showOverlayCenter(reply);
-  speak(reply);
+  if(/cosa (vedi|stai vedendo)/i.test(msg)){
+    return 'Vedo una rete colorata di concetti collegati — tocca un nodo per esplorarne i legami.';
+  }
+
+  if(/^ciao!?$|^hey|^salve/i.test(msg)){
+    return memory.name ? `Ciao ${memory.name}. Eccomi.` : 'Ciao! Eccomi.';
+  }
+
+  return 'Ricevuto. Vuoi chiedermi qualcosa o tocca un nodo nella Nebula.';
 }
 
-/* ====== Mostra il popup al centro con un messaggio ====== */
-function showOverlayCenter(msg){
-  const card   = document.getElementById('overlay-card');
-  const nameEl = document.getElementById('node-name');
-  nameEl.textContent = msg;
-  card.style.left = '10%';
-  card.style.top  = '10%';
-  card.style.display = 'block';
-}
+// invio testo
+formEl.addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const q = promptEl.value;
+  appendMsg('you', q);
+  promptEl.value = '';
+  const a = brain(q);
+  if(a){ appendMsg('ai', a); speak(a); }
+});
 
-// Chiudi col pulsante esistente
-document.getElementById('closeCard').addEventListener('click', () => {
-  document.getElementById('overlay-card').style.display = 'none';
+// microfono (se disponibile)
+let recognizing = false, rec = null;
+if('webkitSpeechRecognition' in window){
+  rec = new webkitSpeechRecognition();
+  rec.lang = 'it-IT'; rec.continuous = false; rec.interimResults = false;
+  rec.onresult = (ev)=>{
+    const txt = ev.results[0][0].transcript;
+    appendMsg('you', txt);
+    const a = brain(txt);
+    if(a){ appendMsg('ai', a); speak(a); }
+  };
+  rec.onend = ()=>{ recognizing = false; micBtn.textContent = '🎤'; };
+}
+micBtn.addEventListener('click', ()=>{
+  if(!rec){ appendMsg('ai','Microfono non disponibile su questo dispositivo.'); return; }
+  if(!recognizing){ recognizing = true; micBtn.textContent = '⏹'; rec.start(); }
+  else{ recognizing = false; micBtn.textContent = '🎤'; rec.stop(); }
+});
+
+// TAP SULLA NEBULA → descrivi nodo toccato
+cvs.addEventListener('click', (ev)=>{
+  const rect = cvs.getBoundingClientRect();
+  const x = ev.clientX - rect.left, y = ev.clientY - rect.top;
+  // trova il punto visivamente più vicino tra quelli già calcolati nell’ultimo frame
+  // (riuso dell’ultima disposizione: calcoliamola al volo come approx)
+  const pts = framePositions(performance.now()/1000, pulseAt(performance.now()/1000));
+  let best = null, bestD = 1e9;
+  for(const p of pts){
+    const d = Math.hypot(p.x - x, p.y - y);
+    if(d < bestD){ bestD = d; best = p; }
+  }
+  if(best && bestD < baseR * 0.12){
+    const text = `Nodo vicino: tonalità ${Math.round(best.hue)}°, legami visibili locali.`;
+    appendMsg('ai', text); speak(text);
+  }else{
+    appendMsg('ai','Tocca più vicino a un nodo luminoso.');
+  }
 });
 </script>
 </body>
