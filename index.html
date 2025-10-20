@@ -22,26 +22,6 @@
         padding:10px 14px; border-radius:14px; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
         font-weight:600}
   canvas{position:absolute; inset:0; width:100%; height:100%; display:block}
-  .msg{ padding:10px 12px; border-radius:12px; line-height:1.35; max-width:90%;}
-.msg.you{ align-self:flex-end; background:rgba(255,255,255,.08);}
-.msg.ai{  align-self:flex-start; background:rgba(20,28,44,.7); border:1px solid rgba(255,255,255,.06);}
-.voice-ui{
-  position:absolute; right:16px; bottom:16px; display:flex; gap:10px; z-index:3;
-}
-.voice-ui button{
-  background:rgba(255,255,255,.06);
-  border:1px solid rgba(255,255,255,.18);
-  color:#fff; padding:10px 12px; border-radius:12px;
-  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
-  font-weight:600;
-}
-.voice-ui button:disabled{ opacity:.45 }
-.hint-mini{
-  position:absolute; right:16px; bottom:62px;
-  background:rgba(10,14,22,.65); border:1px solid rgba(255,255,255,.12);
-  padding:6px 10px; border-radius:10px; font-size:12px;
-  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
-}
 /* === AiLov Console (unica finestra) === */
 .console {
   position:absolute; right:18px; bottom:18px; z-index:5;
@@ -92,28 +72,6 @@
   </form>
 </div>
     <div class="hint">Ciao! Sono <b>AiLov</b>. Parliamo? ✨</div>
-<!-- Voice UI -->
-<div class="voice-ui">
-  <button id="btnSpeak" title="Leggi la risposta">🔊</button>
-  <button id="btnMic"   title="Parla con AiLov">🎙️</button>
-  <span id="micHint" class="hint-mini" hidden>Ascolto… parla pure</span>
-</div>
-<!-- Chat dock minimale -->
-<div id="dock" style="position:absolute; right:14px; bottom:14px; width:min(360px, 92vw); z-index:6;
-                      background:rgba(8,12,20,.65); border:1px solid rgba(255,255,255,.08);
-                      border-radius:14px; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
-                      box-shadow:0 10px 30px rgba(0,0,0,.45); overflow:hidden;">
-  <div id="dock-messages" style="max-height:38vh; overflow:auto; padding:10px 12px; gap:8px; display:flex; flex-direction:column;"></div>
-  <div style="display:flex; gap:8px; padding:10px; border-top:1px solid rgba(255,255,255,.06);">
-    <input id="dock-input" type="text" placeholder="Scrivi a AiLov…" autocomplete="off"
-           style="flex:1; background:rgba(255,255,255,.06); color:#e9eefb; border:1px solid rgba(255,255,255,.08);
-                  border-radius:10px; padding:10px 12px; outline:none;" />
-    <button id="dock-send"
-            style="background:#2f7af8; color:white; border:none; border-radius:10px; padding:10px 14px; font-weight:600;">
-      Invia
-    </button>
-  </div>
-</div>
 <script>
 /* ====================== PARAMETRI ====================== */
 const PARTICLES        = 420;      // nodi (più alto = più denso)
