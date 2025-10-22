@@ -177,6 +177,31 @@ canvas#nebula {
   </header>
 
   <canvas id="nebula"></canvas>
+<!-- FINESTRA UNICA AiLov (centrata sotto la Nebula) -->
+<div id="ailov-window" class="ailov-window" role="dialog" aria-label="Console AiLov">
+  <div class="toolbar">
+    <button id="btnVoice" title="Parla">🎙️</button>
+    <button id="btnChat"  title="Chat">💬</button>
+    <button id="btnNode"  title="Nodo">🔍</button>
+    <button id="btnClose" title="Chiudi">×</button>
+  </div>
+
+  <div class="content">
+    <!-- pannello chat -->
+    <div id="chatPanel" class="panel active">
+      <div id="log" class="log" aria-live="polite"></div>
+      <form id="promptBar" class="prompt">
+        <input id="prompt" autocomplete="off" placeholder="Scrivi o parla con AiLov…" />
+        <button id="sendBtn" type="submit">Invia</button>
+      </form>
+    </div>
+
+    <!-- pannello nodo -->
+    <div id="nodePanel" class="panel">
+      <p id="nodeInfo">Tocca un nodo nella Nebula…</p>
+    </div>
+  </div>
+</div>
   <!-- NEBULA ENGINE -->
 <script>
 /* === NEBULA ENGINE (animazione + click) ================= */
@@ -309,6 +334,83 @@ cvs.addEventListener('click',(ev)=>{
   }
 });
 /* ===================================================== */
+  /* === UI FINESTRA: chat + voce + pannelli ================= */
+
+// riferimenti
+const winEl     = document.getElementById('ailov-window');
+const btnVoice  = document.getElementById('btnVoice');
+const btnChat   = document.getElementById('btnChat');
+const btnNode   = document.getElementById('btnNode');
+const btnClose  = document.getElementById('btnClose');
+const chatPanel = document.getElementById('chatPanel');
+const nodePanel = document.getElementById('nodePanel');
+const nodeInfoEl= document.getElementById('nodeInfo');
+const logEl     = document.getElementById('log');
+const formEl    = document.getElementById('promptBar');
+const inputEl   = document.getElementById('prompt');
+
+// commuta pannelli
+btnChat.onclick = () => { chatPanel.classList.add('active'); nodePanel.classList.remove('active'); };
+btnNode.onclick = () => { nodePanel.classList.add('active'); chatPanel.classList.remove('active'); };
+btnClose.onclick= () => { winEl.style.display = 'none'; };
+
+// chat minima
+function appendMsg(role, text){
+  const row = document.createElement('div');
+  row.className = 'msg';
+  row.textContent = (role === 'you' ? 'Tu: ' : 'AiLov: ') + text;
+  logEl.append(row);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function brain(msg){
+  msg = msg.trim();
+  if(!msg) return null;
+  if(/^ciao|hey|salve/i.test(msg)) return 'Ciao! 🌿';
+  if(/come stai/i.test(msg))       return 'Bene! La Nebula è viva stasera.';
+  return 'Ricevuto. Tocca un nodo o fammi una domanda.';
+}
+
+formEl.addEventListener('submit', (e)=>{
+  e.preventDefault();                         // 🔴 evita il reload della pagina
+  const q = inputEl.value;
+  inputEl.value = '';
+  appendMsg('you', q);
+  const a = brain(q);
+  if(a) appendMsg('ai', a);
+});
+
+// voce (se supportata)
+let rec = null, recognizing = false;
+if('webkitSpeechRecognition' in window){
+  rec = new webkitSpeechRecognition();
+  rec.lang = 'it-IT'; rec.continuous = false; rec.interimResults = false;
+  rec.onresult = (ev)=>{
+    const txt = ev.results[0][0].transcript;
+    appendMsg('you', txt);
+    const a = brain(txt);
+    if(a) appendMsg('ai', a);
+  };
+  rec.onend = ()=>{ recognizing = false; };
+}
+btnVoice.onclick = ()=>{
+  if(!rec){ appendMsg('ai','Microfono non disponibile su questo dispositivo.'); return; }
+  if(!recognizing){ recognizing = true; rec.start(); } else { recognizing = false; rec.stop(); }
+};
+
+/* CLICK SULLA NEBULA → mostra info nel pannello Nodo */
+cvs.addEventListener('click', (ev)=>{
+  const rect=cvs.getBoundingClientRect();
+  const x=ev.clientX-rect.left, y=ev.clientY-rect.top;
+  const t=performance.now()/1000, p=pulseAt(t), pts=framePositions(t,p);
+  let best=null, bestD=1e9;
+  for(const q of pts){ const d=Math.hypot(q.x-x,q.y-y); if(d<bestD){bestD=d; best=q;} }
+  if(best && bestD<baseR*0.12){
+    nodeInfoEl.textContent = `Nodo vicino: tonalità ${Math.round(best.hue)}°, legami locali visibili.`;
+    btnNode.click(); // passa automaticamente al pannello Nodo
+  }
+});
+/* ======================================================== */
 </script>
 </body>
 </html>
