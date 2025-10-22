@@ -263,36 +263,101 @@ function spawn(){
 
 function pulseAt(t){ return 1 + PULSE_AMPL * Math.sin(TAU*PULSE_HZ*t); }
 
-  // rotazione manuale (drag) + stato
+<script>
+// --- rotazione manuale (drag) + stato
 let rotOffset = 0;
 let drag = false, lastX = 0;
+
 function framePositions(t, p){
   const jitter = baseR * JITTER_FR;
   const rot    = t * TAU * ROTATE_HZ;   // rotazione automatica
   const out    = new Array(nodes.length);
-
   for (let i = 0; i < nodes.length; i++){
     const n  = nodes[i];
     const r  = n.r0 * p;
-    const a  = n.th + rot + rotOffset;  // ✅ rotazione automatica + manuale
+    const a  = n.th + rot + rotOffset;  // automatica + manuale
     const jx = Math.sin(t*1.25 + n.seed) * jitter;
     const jy = Math.cos(t*1.55 + n.seed) * jitter;
-
-    const x = cx + Math.cos(a) * r + jx;
-    const y = cy + Math.sin(a) * r + jy;
-
-    out[i] = { x, y, hue: n.hue };
+    out[i] = { x: cx + Math.cos(a)*r + jx, y: cy + Math.sin(a)*r + jy, hue: n.hue };
   }
-  return out;  // ✅ solo un return, senza graffe extra
+  return out;
 }
 
- // Rotazione manuale con mouse
+// --- listener per rotazione con mouse/touch
+cvs.addEventListener('mousedown', e => { drag = true;  lastX = e.clientX; });
+cvs.addEventListener('mouseup',   () => { drag = false; });
+cvs.addEventListener('mouseleave',() => { drag = false; });
 cvs.addEventListener('mousemove', e => {
   if (!drag) return;
   const dx = e.clientX - lastX;
   lastX = e.clientX;
   rotOffset += dx * 0.002;
 });
+cvs.addEventListener('touchstart', e => { drag = true;  lastX = e.touches[0].clientX; }, {passive:true});
+cvs.addEventListener('touchend',   () => { drag = false; }, {passive:true});
+cvs.addEventListener('touchmove',  e => {
+  if (!drag) return;
+  const dx = e.touches[0].clientX - lastX;
+  lastX = e.touches[0].clientX;
+  rotOffset += dx * 0.002;
+}, {passive:true});
+
+// --- rendering (mancava, è per questo che la Nebula era sparita)
+function drawCoreGlow(p){
+  const r=baseR*1.18*p;
+  const g=ctx.createRadialGradient(cx,cy,r*0.06,cx,cy,r);
+  const F=CORE_STRENGTH;
+  g.addColorStop(0.00,`rgba(255,220,140,${0.30*F})`);
+  g.addColorStop(0.30,`rgba(240,110,200,${0.22*F})`);
+  g.addColorStop(0.65,`rgba(110,160,255,${0.16*F})`);
+  g.addColorStop(1.00,`rgba(10,18,36,0.00)`);
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r,0,TAU); ctx.fill();
+}
+function drawLinks(pts,p){
+  const linkR=baseR*LINK_RADIUS_FR;
+  const aBase=LINE_ALPHA_BASE + LINE_ALPHA_PULSE * (p-1)/PULSE_AMPL * 0.5;
+  ctx.lineWidth=Math.max(1,0.9*dpr);
+  for(let i=0;i<pts.length;i++){
+    let links=0; const a=pts[i];
+    for(let j=i+1;j<pts.length && links<MAX_LINKS_NODE;j++){
+      const b=pts[j], d=Math.hypot(a.x-b.x,a.y-b.y);
+      if(d<linkR){
+        const t=1-d/linkR;
+        ctx.strokeStyle=`hsla(${((a.hue+b.hue)/2).toFixed(1)},85%,75%,${(aBase*(0.25+t*0.75)).toFixed(3)})`;
+        ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+        links++;
+      }
+    }
+  }
+}
+function drawNodes(pts,p){
+  const r=NODE_SIZE*dpr;
+  ctx.shadowColor='rgba(255,255,255,0.28)';
+  ctx.shadowBlur=7*dpr*(0.9+0.2*(p-1)/PULSE_AMPL);
+  for(const q of pts){
+    ctx.fillStyle=`hsl(${q.hue.toFixed(1)} ${SAT}% ${LUM+10*(p-1)/PULSE_AMPL}%)`;
+    ctx.beginPath(); ctx.arc(q.x,q.y,r,0,TAU); ctx.fill();
+  }
+  ctx.shadowBlur=0;
+}
+function clipCircle(radius){ ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,radius,0,TAU); ctx.clip(); }
+
+function step(tms){
+  const now=tms/1000, p=pulseAt(now);
+  ctx.clearRect(0,0,cvs.width,cvs.height);
+  clipCircle(baseR*1.06*p);
+  drawCoreGlow(p);
+  const pts=framePositions(now,p);
+  drawLinks(pts,p);
+  drawNodes(pts,p);
+  ctx.restore();
+  requestAnimationFrame(step);
+}
+
+// avvio (se per caso lo avevi tolto)
+function start(){ resize(); spawn(); requestAnimationFrame(step); }
+start();
+</script>
 /* === Trascinamento finestra AiLov === */
 (function makeDraggable(win) {
   let isDown = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
