@@ -209,7 +209,8 @@ canvas#nebula {
 //// Parametri
 const PARTICLES=420, MAX_LINKS_NODE=3, LINK_RADIUS_FR=0.20, NODE_SIZE=1.2;
 const LINE_ALPHA_BASE=0.12, LINE_ALPHA_PULSE=0.08, SAT=92, LUM=66, CORE_STRENGTH=1.05;
-const PULSE_HZ=0.85, PULSE_AMPL=0.045, JITTER_FR=0.010, RADIUS_FR=0.38, DPR_CAP=2;
+const PULSE_HZ=0.85, PULSE_AMPL=0.055, JITTER_FR=0.012, RADIUS_FR=0.38, DPR_CAP=2;
+const ROTATE_HZ = 0.010;   // giri al secondo (0.010 ≈ 1 giro ogni ~100s)
 
 //// Canvas
 const cvs = document.getElementById('nebula');
@@ -262,14 +263,25 @@ function spawn(){
 
 function pulseAt(t){ return 1 + PULSE_AMPL * Math.sin(TAU*PULSE_HZ*t); }
 
-function framePositions(t,p){
-  const jitter=baseR*JITTER_FR, out=new Array(nodes.length);
-  for(let i=0;i<nodes.length;i++){
-    const n=nodes[i], r=n.r0*p;
-    const jx=Math.sin(t*1.25+n.seed)*jitter;
-    const jy=Math.cos(t*1.55+n.seed)*jitter;
-    out[i]={ x:cx+Math.cos(n.th)*r+jx, y:cy+Math.sin(n.th)*r+jy, hue:n.hue };
+function framePositions(t, p){
+  const jitter = baseR * JITTER_FR;
+  const rot    = t * TAU * ROTATE_HZ;     // angolo di rotazione globale
+  const out = new Array(nodes.length);
+
+  for (let i = 0; i < nodes.length; i++){
+    const n  = nodes[i];
+    const r  = n.r0 * p;
+    const a  = n.th + rot;                // theta ruotato
+    const jx = Math.sin(t*1.25 + n.seed) * jitter;
+    const jy = Math.cos(t*1.55 + n.seed) * jitter;
+
+    const x = cx + Math.cos(a) * r + jx;
+    const y = cy + Math.sin(a) * r + jy;
+
+    out[i] = { x, y, hue: n.hue };
   }
+  return out;
+}
   return out;
 }
 
@@ -394,18 +406,34 @@ btnVoice.onclick = ()=>{
   if(!recognizing){ recognizing = true; rec.start(); } else { recognizing = false; rec.stop(); }
 };
 
-/* CLICK SULLA NEBULA → mostra info nel pannello Nodo */
-cvs.addEventListener('click', (ev)=>{
+/* CLICK SULLA NEBULA → mostra info nel pannello Nodo  */
+
+// 1) TAP → fingi un click (fuori dal listener di click!)
 cvs.addEventListener('touchstart', (ev) => {
   const t = ev.touches[0];
-  cvs.dispatchEvent(new MouseEvent('click', {clientX: t.clientX, clientY: t.clientY}));
-}, {passive:true});
-  const rect=cvs.getBoundingClientRect();
-  const x=ev.clientX-rect.left, y=ev.clientY-rect.top;
-  const t=performance.now()/1000, p=pulseAt(t), pts=framePositions(t,p);
-  let best=null, bestD=1e9;
-  for(const q of pts){ const d=Math.hypot(q.x-x,q.y-y); if(d<bestD){bestD=d; best=q;} }
-  if(best && bestD<baseR*0.12){
+  cvs.dispatchEvent(new MouseEvent('click', {
+    clientX: t.clientX,
+    clientY: t.clientY
+  }));
+}, { passive: true });
+
+// 2) Vero handler di click (uno solo)
+cvs.addEventListener('click', (ev) => {
+  const rect = cvs.getBoundingClientRect();
+  const x = ev.clientX - rect.left;
+  const y = ev.clientY - rect.top;
+
+  const t = performance.now() / 1000;
+  const p = pulseAt(t);
+  const pts = framePositions(t, p);
+
+  let best = null, bestD = 1e9;
+  for (const q of pts) {
+    const d = Math.hypot(q.x - x, q.y - y);
+    if (d < bestD) { bestD = d; best = q; }
+  }
+
+  if (best && bestD < baseR * 0.12) {
     nodeInfoEl.textContent = `Nodo vicino: tonalità ${Math.round(best.hue)}°, legami locali visibili.`;
     btnNode.click(); // passa automaticamente al pannello Nodo
   }
