@@ -358,6 +358,17 @@ const nodeInfoEl= document.getElementById('nodeInfo');
 const logEl     = document.getElementById('log');
 const formEl    = document.getElementById('promptBar');
 const inputEl   = document.getElementById('prompt');
+// --- Voce in uscita (TTS)
+const synth = window.speechSynthesis || null;
+function speak(text) {
+  if (!synth) return;                 // se il browser non la supporta, esci
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'it-IT';
+  u.rate = 1;
+  u.pitch = 1;
+  try { synth.cancel(); } catch(e){}  // stop eventuale parlato precedente
+  synth.speak(u);
+}
 
 btnChat.onclick = () => { chatPanel.classList.add('active'); nodePanel.classList.remove('active'); };
 btnNode.onclick = () => { nodePanel.classList.add('active'); chatPanel.classList.remove('active'); };
@@ -373,15 +384,18 @@ function appendMsg(role, text){
 function brain(msg){
   msg = msg.trim();
   if(!msg) return null;
-  if(/^ciao|hey|salve/i.test(msg)) return 'Ciao! 🌿';
-  if(/come stai/i.test(msg))       return 'Bene! La Nebula è viva stasera.';
+  if (/ciao|hey|salve/i.test(msg)) return 'Ciao! 🌿 Come posso aiutarti?';
+  if (/come stai/i.test(msg)) return 'Bene! Sto guardando le stelle della Nebula ✨';
+  if (/parla|voce/i.test(msg)) return 'Eccomi: sto parlando. Vuoi che continui a risponderti a voce?';
   return 'Ricevuto. Tocca un nodo o fammi una domanda.';
 }
 formEl.addEventListener('submit', (e)=>{
   e.preventDefault();
   const q = inputEl.value; inputEl.value = '';
+  if (!q.trim()) return;
   appendMsg('you', q);
-  const a = brain(q); if(a) appendMsg('ai', a);
+  const a = brain(q);
+  if (a) { appendMsg('ai', a); speak(a); }
 });
 
 // voce
@@ -390,10 +404,11 @@ if('webkitSpeechRecognition' in window){
   rec = new webkitSpeechRecognition();
   rec.lang = 'it-IT'; rec.continuous = false; rec.interimResults = false;
   rec.onresult = (ev)=>{
-    const txt = ev.results[0][0].transcript;
-    appendMsg('you', txt);
-    const a = brain(txt); if(a) appendMsg('ai', a);
-  };
+  const txt = ev.results[0][0].transcript;
+  appendMsg('you', txt);
+  const a = brain(txt);
+  if (a) { appendMsg('ai', a); speak(a); }
+};
   rec.onend = ()=>{ recognizing = false; };
 }
 btnVoice.onclick = ()=>{
