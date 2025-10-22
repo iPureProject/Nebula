@@ -317,23 +317,6 @@ function step(tms){
 function start(){ resize(); spawn(); requestAnimationFrame(step); }
 start();
 
-/* === CLICK: mostra info nodo nel pannello finestra === */
-const nodeInfoEl=document.getElementById('nodeInfo');
-const chatPanel=document.getElementById('chatPanel');
-const nodePanel=document.getElementById('nodePanel');
-cvs.addEventListener('click',(ev)=>{
-  const rect=cvs.getBoundingClientRect();
-  const x=ev.clientX-rect.left, y=ev.clientY-rect.top;
-  const t=performance.now()/1000, p=pulseAt(t), pts=framePositions(t,p);
-  let best=null, bestD=1e9;
-  for(const q of pts){ const d=Math.hypot(q.x-x,q.y-y); if(d<bestD){bestD=d; best=q;} }
-  if(best && bestD<baseR*0.12){
-    const text=`Nodo vicino: tonalità ${Math.round(best.hue)}°, legami locali visibili.`;
-    if(nodeInfoEl) nodeInfoEl.textContent=text;
-    if(nodePanel && chatPanel){ nodePanel.classList.add('active'); chatPanel.classList.remove('active'); }
-  }
-});
-/* ===================================================== */
   /* === UI FINESTRA: chat + voce + pannelli ================= */
 
 // riferimenti
