@@ -263,15 +263,18 @@ function spawn(){
 
 function pulseAt(t){ return 1 + PULSE_AMPL * Math.sin(TAU*PULSE_HZ*t); }
 
+  // rotazione manuale (drag) + stato
+let rotOffset = 0;
+let drag = false, lastX = 0;
 function framePositions(t, p){
   const jitter = baseR * JITTER_FR;
-  const rot    = t * TAU * ROTATE_HZ;     // angolo di rotazione globale
-  const out = new Array(nodes.length);
+  const rot    = t * TAU * ROTATE_HZ;   // rotazione automatica
+  const out    = new Array(nodes.length);
 
   for (let i = 0; i < nodes.length; i++){
     const n  = nodes[i];
     const r  = n.r0 * p;
-    const a  = n.th + rot;                // theta ruotato
+    const a  = n.th + rot + rotOffset;  // ✅ rotazione automatica + manuale
     const jx = Math.sin(t*1.25 + n.seed) * jitter;
     const jy = Math.cos(t*1.55 + n.seed) * jitter;
 
@@ -280,43 +283,39 @@ function framePositions(t, p){
 
     out[i] = { x, y, hue: n.hue };
   }
-  return out;
-}
-  return out;
+  return out;  // ✅ solo un return, senza graffe extra
 }
 
-  /* === Interazione manuale per ruotare la Nebula === */
-let drag = false, lastX = 0, rotOffset = 0;
-
-cvs.addEventListener('mousedown', e => {
-  drag = true;
-  lastX = e.clientX;
-});
-
-cvs.addEventListener('mouseup', () => drag = false);
-cvs.addEventListener('mouseleave', () => drag = false);
-
+ // Rotazione manuale della Nebula (mouse/touch)
+cvs.addEventListener('mousedown', e => { drag = true; lastX = e.clientX; });
+cvs.addEventListener('mouseup',   () => { drag = false; });
+cvs.addEventListener('mouseleave',() => { drag = false; });
 cvs.addEventListener('mousemove', e => {
+  const dx = e.clientX - startX;
+const dy = e.clientY - startY;
+let left = startLeft + dx;
+let top  = startTop + dy;
+
+// limiti ai bordi
+left = Math.max(8, Math.min(window.innerWidth  - win.offsetWidth  - 8, left));
+top  = Math.max(8, Math.min(window.innerHeight - win.offsetHeight - 8, top));
+
+win.style.left = left + 'px';
+win.style.top  = top  + 'px';
+win.style.transform = 'none';
   if (!drag) return;
   const dx = e.clientX - lastX;
   lastX = e.clientX;
-  rotOffset += dx * 0.002;   // sensibilità rotazione manuale
+  rotOffset += dx * 0.002;
 });
-
-cvs.addEventListener('touchstart', e => {
-  drag = true;
-  lastX = e.touches[0].clientX;
-}, { passive: true });
-
-cvs.addEventListener('touchmove', e => {
+cvs.addEventListener('touchstart', e => { drag = true; lastX = e.touches[0].clientX; }, {passive:true});
+cvs.addEventListener('touchend',   () => { drag = false; }, {passive:true});
+cvs.addEventListener('touchmove',  e => {
   if (!drag) return;
   const dx = e.touches[0].clientX - lastX;
   lastX = e.touches[0].clientX;
   rotOffset += dx * 0.002;
-}, { passive: true });
-
-cvs.addEventListener('touchend', () => drag = false);
-
+}, {passive:true});
 /* modifica la linea dentro framePositions che calcola l’angolo “a”:
    cambia “const a = n.th + rot;” in “const a = n.th + rot + rotOffset;”
    così la rotazione manuale si somma a quella automatica.
