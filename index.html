@@ -220,19 +220,32 @@ const TAU = Math.PI*2;
 
 //// Dimensionamento (tenendo conto del titolo .hero)
 const hero = document.querySelector('.hero');
-function resize(){
-  const wpx = window.innerWidth;
-  const hpx = window.innerHeight - (hero ? hero.offsetHeight : 0);
 
-  dpr = Math.min(window.devicePixelRatio||1, DPR_CAP);
-  cvs.width  = Math.max(320, Math.floor(wpx * dpr));
-  cvs.height = Math.max(240, Math.floor(hpx * dpr));
+function resize(){
+  // altezza del titolo da tenere libera
+  const safeTop = hero ? hero.offsetHeight : 0;
+
+  // larghezza piena, altezza = viewport - titolo (mai meno di 200px)
+  const wpx = window.innerWidth;
+  const hpx = Math.max(200, window.innerHeight - safeTop);
+
+  // posiziona il canvas subito sotto il titolo
+  cvs.style.top    = safeTop + 'px';
   cvs.style.width  = wpx + 'px';
   cvs.style.height = hpx + 'px';
 
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  w = wpx; h = hpx; cx = w/2; cy = h/2;
-  baseR = Math.min(w,h) * RADIUS_FR;
+  // imposta dimensioni reali (retina, ecc.)
+  dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP);
+  cvs.width  = Math.floor(wpx * dpr);
+  cvs.height = Math.floor(hpx * dpr);
+
+  // sistema geometria
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  w = wpx;
+  h = hpx;
+  cx = w / 2;
+  cy = h / 2;
+  baseR = Math.min(w, h) * RADIUS_FR;
 }
 window.addEventListener('resize', ()=>{ resize(); spawn(); }, {passive:true});
 
