@@ -221,32 +221,22 @@ const TAU = Math.PI*2;
 
 //// Dimensionamento (tenendo conto del titolo .hero)
 const hero = document.querySelector('.hero');
-
 function resize(){
-  // altezza del titolo da tenere libera
   const safeTop = hero ? hero.offsetHeight : 0;
-
-  // larghezza piena, altezza = viewport - titolo (mai meno di 200px)
   const wpx = window.innerWidth;
   const hpx = Math.max(200, window.innerHeight - safeTop);
 
-  // posiziona il canvas subito sotto il titolo
   cvs.style.top    = safeTop + 'px';
   cvs.style.width  = wpx + 'px';
   cvs.style.height = hpx + 'px';
 
-  // imposta dimensioni reali (retina, ecc.)
   dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP);
   cvs.width  = Math.floor(wpx * dpr);
   cvs.height = Math.floor(hpx * dpr);
 
-  // sistema geometria
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  w = wpx;
-  h = hpx;
-  cx = w / 2;
-  cy = h / 2;
-  baseR = Math.min(w, h) * RADIUS_FR;
+  w = wpx; h = hpx; cx = w/2; cy = h/2;
+  baseR = Math.min(w,h) * RADIUS_FR;
 }
 window.addEventListener('resize', ()=>{ resize(); spawn(); }, {passive:true});
 
@@ -263,19 +253,18 @@ function spawn(){
 
 function pulseAt(t){ return 1 + PULSE_AMPL * Math.sin(TAU*PULSE_HZ*t); }
 
-<script>
-// --- rotazione manuale (drag) + stato
+/* --- Rotazione automatica + manuale (drag) --- */
 let rotOffset = 0;
 let drag = false, lastX = 0;
 
 function framePositions(t, p){
   const jitter = baseR * JITTER_FR;
-  const rot    = t * TAU * ROTATE_HZ;   // rotazione automatica
+  const rot    = t * TAU * ROTATE_HZ;
   const out    = new Array(nodes.length);
   for (let i = 0; i < nodes.length; i++){
     const n  = nodes[i];
     const r  = n.r0 * p;
-    const a  = n.th + rot + rotOffset;  // automatica + manuale
+    const a  = n.th + rot + rotOffset; // auto + manuale
     const jx = Math.sin(t*1.25 + n.seed) * jitter;
     const jy = Math.cos(t*1.55 + n.seed) * jitter;
     out[i] = { x: cx + Math.cos(a)*r + jx, y: cy + Math.sin(a)*r + jy, hue: n.hue };
@@ -283,26 +272,23 @@ function framePositions(t, p){
   return out;
 }
 
-// --- listener per rotazione con mouse/touch
 cvs.addEventListener('mousedown', e => { drag = true;  lastX = e.clientX; });
 cvs.addEventListener('mouseup',   () => { drag = false; });
 cvs.addEventListener('mouseleave',() => { drag = false; });
 cvs.addEventListener('mousemove', e => {
   if (!drag) return;
-  const dx = e.clientX - lastX;
-  lastX = e.clientX;
+  const dx = e.clientX - lastX; lastX = e.clientX;
   rotOffset += dx * 0.002;
 });
 cvs.addEventListener('touchstart', e => { drag = true;  lastX = e.touches[0].clientX; }, {passive:true});
 cvs.addEventListener('touchend',   () => { drag = false; }, {passive:true});
 cvs.addEventListener('touchmove',  e => {
   if (!drag) return;
-  const dx = e.touches[0].clientX - lastX;
-  lastX = e.touches[0].clientX;
+  const dx = e.touches[0].clientX - lastX; lastX = e.touches[0].clientX;
   rotOffset += dx * 0.002;
 }, {passive:true});
 
-// --- rendering (mancava, è per questo che la Nebula era sparita)
+/* --- Rendering --- */
 function drawCoreGlow(p){
   const r=baseR*1.18*p;
   const g=ctx.createRadialGradient(cx,cy,r*0.06,cx,cy,r);
@@ -313,6 +299,7 @@ function drawCoreGlow(p){
   g.addColorStop(1.00,`rgba(10,18,36,0.00)`);
   ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r,0,TAU); ctx.fill();
 }
+
 function drawLinks(pts,p){
   const linkR=baseR*LINK_RADIUS_FR;
   const aBase=LINE_ALPHA_BASE + LINE_ALPHA_PULSE * (p-1)/PULSE_AMPL * 0.5;
@@ -330,6 +317,7 @@ function drawLinks(pts,p){
     }
   }
 }
+
 function drawNodes(pts,p){
   const r=NODE_SIZE*dpr;
   ctx.shadowColor='rgba(255,255,255,0.28)';
@@ -340,6 +328,7 @@ function drawNodes(pts,p){
   }
   ctx.shadowBlur=0;
 }
+
 function clipCircle(radius){ ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,radius,0,TAU); ctx.clip(); }
 
 function step(tms){
@@ -354,37 +343,98 @@ function step(tms){
   requestAnimationFrame(step);
 }
 
-// avvio (se per caso lo avevi tolto)
 function start(){ resize(); spawn(); requestAnimationFrame(step); }
 start();
-</script>
-/* === Trascinamento finestra AiLov === */
-(function makeDraggable(win) {
-  let isDown = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
 
+/* --- UI finestra: chat + voce + pannelli --- */
+const winEl     = document.getElementById('ailov-window');
+const btnVoice  = document.getElementById('btnVoice');
+const btnChat   = document.getElementById('btnChat');
+const btnNode   = document.getElementById('btnNode');
+const btnClose  = document.getElementById('btnClose');
+const chatPanel = document.getElementById('chatPanel');
+const nodePanel = document.getElementById('nodePanel');
+const nodeInfoEl= document.getElementById('nodeInfo');
+const logEl     = document.getElementById('log');
+const formEl    = document.getElementById('promptBar');
+const inputEl   = document.getElementById('prompt');
+
+btnChat.onclick = () => { chatPanel.classList.add('active'); nodePanel.classList.remove('active'); };
+btnNode.onclick = () => { nodePanel.classList.add('active'); chatPanel.classList.remove('active'); };
+btnClose.onclick= () => { winEl.style.display = 'none'; };
+
+function appendMsg(role, text){
+  const row = document.createElement('div');
+  row.className = 'msg';
+  row.textContent = (role === 'you' ? 'Tu: ' : 'AiLov: ') + text;
+  logEl.append(row);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function brain(msg){
+  msg = msg.trim();
+  if(!msg) return null;
+  if(/^ciao|hey|salve/i.test(msg)) return 'Ciao! 🌿';
+  if(/come stai/i.test(msg))       return 'Bene! La Nebula è viva stasera.';
+  return 'Ricevuto. Tocca un nodo o fammi una domanda.';
+}
+formEl.addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const q = inputEl.value; inputEl.value = '';
+  appendMsg('you', q);
+  const a = brain(q); if(a) appendMsg('ai', a);
+});
+
+// voce
+let rec = null, recognizing = false;
+if('webkitSpeechRecognition' in window){
+  rec = new webkitSpeechRecognition();
+  rec.lang = 'it-IT'; rec.continuous = false; rec.interimResults = false;
+  rec.onresult = (ev)=>{
+    const txt = ev.results[0][0].transcript;
+    appendMsg('you', txt);
+    const a = brain(txt); if(a) appendMsg('ai', a);
+  };
+  rec.onend = ()=>{ recognizing = false; };
+}
+btnVoice.onclick = ()=>{
+  if(!rec){ appendMsg('ai','Microfono non disponibile su questo dispositivo.'); return; }
+  if(!recognizing){ recognizing = true; rec.start(); } else { recognizing = false; rec.stop(); }
+};
+
+// click sulla Nebula → info nodo
+cvs.addEventListener('click', (ev) => {
+  const rect = cvs.getBoundingClientRect();
+  const x = ev.clientX - rect.left;
+  const y = ev.clientY - rect.top;
+  const t = performance.now()/1000, p = pulseAt(t), pts = framePositions(t,p);
+  let best=null, bestD=1e9;
+  for(const q of pts){ const d=Math.hypot(q.x-x,q.y-y); if(d<bestD){bestD=d; best=q;} }
+  if(best && bestD<baseR*0.12){
+    nodeInfoEl.textContent = `Nodo vicino: tonalità ${Math.round(best.hue)}°, legami locali visibili.`;
+    btnNode.click();
+  }
+});
+
+/* --- Trascinamento finestra AiLov --- */
+(function makeDraggable(win) {
+  let isDown=false, startX=0, startY=0, startLeft=0, startTop=0;
   const toolbar = win.querySelector('.toolbar');
   toolbar.style.cursor = 'move';
-
-  toolbar.addEventListener('mousedown', e => {
-    isDown = true;
-    startX = e.clientX;
-    startY = e.clientY;
-    const rect = win.getBoundingClientRect();
-    startLeft = rect.left;
-    startTop = rect.top;
-    win.style.transition = 'none';
+  toolbar.addEventListener('mousedown', e=>{
+    isDown=true; startX=e.clientX; startY=e.clientY;
+    const r=win.getBoundingClientRect(); startLeft=r.left; startTop=r.top;
+    win.style.transition='none';
   });
-
-  document.addEventListener('mouseup', () => isDown = false);
-  document.addEventListener('mousemove', e => {
-    if (!isDown) return;
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
+  document.addEventListener('mouseup', ()=> isDown=false);
+  document.addEventListener('mousemove', e=>{
+    if(!isDown) return;
+    const dx=e.clientX-startX, dy=e.clientY-startY;
     win.style.left = startLeft + dx + 'px';
     win.style.top  = startTop + dy + 'px';
-    win.style.transform = 'none';
+    win.style.transform='none';
   });
-})(document.getElementById('ailov-window'));
+})(winEl);
+
 </script>
 </body>
 </html>
