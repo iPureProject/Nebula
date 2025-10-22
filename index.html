@@ -179,108 +179,84 @@ canvas#nebula {
   <canvas id="nebula"></canvas>
   <!-- NEBULA ENGINE -->
 <script>
-/* ====================== PARAMETRI ====================== */
-const PARTICLES        = 420;      // nodi (più alto = più denso)
-const MAX_LINKS_NODE   = 3;        // connessioni eleganti per nodo
-const LINK_RADIUS_FR   = 0.20;     // raggio connessioni (× baseR)
-const NODE_SIZE        = 1.2;      // raggio puntini (piccoli)
-const LINE_ALPHA_BASE  = 0.12;     // opacità linee base
-const LINE_ALPHA_PULSE = 0.08;     // extra durante il battito
-const SAT              = 92;       // saturazione HSL (vivace)
-const LUM              = 66;       // luminosità media HSL
-const CORE_STRENGTH    = 1.05;     // intensità glow centrale
+/* === NEBULA ENGINE (animazione + click) ================= */
 
-// Battito calmo
-const PULSE_HZ   = 0.85;           // 0.7–1.1
-const PULSE_AMPL = 0.045;          // 0.03–0.07
-const JITTER_FR  = 0.010;          // micro tremolio (× baseR)
-const RADIUS_FR  = 0.38;           // raggio sfera vs lato min
-const DPR_CAP    = 2;              // per iPad performance
-/* ====================================================== */
+//// Parametri
+const PARTICLES=420, MAX_LINKS_NODE=3, LINK_RADIUS_FR=0.20, NODE_SIZE=1.2;
+const LINE_ALPHA_BASE=0.12, LINE_ALPHA_PULSE=0.08, SAT=92, LUM=66, CORE_STRENGTH=1.05;
+const PULSE_HZ=0.85, PULSE_AMPL=0.045, JITTER_FR=0.010, RADIUS_FR=0.38, DPR_CAP=2;
 
+//// Canvas
 const cvs = document.getElementById('nebula');
-const ctx = cvs.getContext('2d');
+const ctx = cvs.getContext('2d', { alpha:true });
 
 let w=0,h=0,cx=0,cy=0, baseR=0, dpr=1;
+const TAU = Math.PI*2;
 
+//// Dimensionamento (tenendo conto del titolo .hero)
+const hero = document.querySelector('.hero');
 function resize(){
-  const rect = cvs.getBoundingClientRect();
+  const wpx = window.innerWidth;
+  const hpx = window.innerHeight - (hero ? hero.offsetHeight : 0);
+
   dpr = Math.min(window.devicePixelRatio||1, DPR_CAP);
-  cvs.width  = Math.max(320, Math.floor(rect.width  * dpr));
-  cvs.height = Math.max(240, Math.floor(rect.height * dpr));
+  cvs.width  = Math.max(320, Math.floor(wpx * dpr));
+  cvs.height = Math.max(240, Math.floor(hpx * dpr));
+  cvs.style.width  = wpx + 'px';
+  cvs.style.height = hpx + 'px';
+
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  w = rect.width; h = rect.height; cx = w/2; cy = h/2;
+  w = wpx; h = hpx; cx = w/2; cy = h/2;
   baseR = Math.min(w,h) * RADIUS_FR;
 }
 window.addEventListener('resize', ()=>{ resize(); spawn(); }, {passive:true});
 
-/* punti stabili: memorizziamo r0 + theta + seed */
+//// Nodi stabili
 const nodes=[];
 function spawn(){
   nodes.length=0;
   for(let i=0;i<PARTICLES;i++){
-    const u = Math.random(), v = Math.random();
-    const r0 = Math.sqrt(u) * (baseR*0.98);    // uniforme nel disco
-    const th = 2*Math.PI*v;
-    const hue= (th*180/Math.PI + 360)%360;     // arcobaleno da angolo
-    nodes.push({r0: r0, th: th, hue: hue, seed: Math.random()*1000});
+    const u=Math.random(), v=Math.random();
+    const r0=Math.sqrt(u)*(baseR*0.98), th=TAU*v, hue=(th*180/Math.PI+360)%360;
+    nodes.push({r0, th, hue, seed:Math.random()*1000});
   }
 }
-resize(); spawn();
 
-// battito sinusoidale → niente “buco nero”
-const TAU = Math.PI*2;
 function pulseAt(t){ return 1 + PULSE_AMPL * Math.sin(TAU*PULSE_HZ*t); }
 
-// clip circolare
-function clipCircle(radius){
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, TAU);
-  ctx.clip();
-}
-
-// glow centrale (nero-blu profondo intorno)
-function drawCoreGlow(p){
-  const r = baseR * 1.18 * p;
-  const g = ctx.createRadialGradient(cx,cy, r*0.06, cx,cy, r);
-  const F = CORE_STRENGTH;
-  g.addColorStop(0.00, `rgba(255,220,140,${0.30*F})`);
-  g.addColorStop(0.30, `rgba(240,110,200,${0.22*F})`);
-  g.addColorStop(0.65, `rgba(110,160,255,${0.16*F})`);
-  g.addColorStop(1.00, `rgba(10,18,36,0.00)`);
-  ctx.fillStyle = g;
-  ctx.beginPath(); ctx.arc(cx,cy,r,0,TAU); ctx.fill();
-}
-
-function framePositions(t, p){
-  const jitter = baseR * JITTER_FR;
-  const out = new Array(nodes.length);
+function framePositions(t,p){
+  const jitter=baseR*JITTER_FR, out=new Array(nodes.length);
   for(let i=0;i<nodes.length;i++){
-    const n = nodes[i];
-    const r = n.r0 * p;
-    const jx = Math.sin(t*1.25 + n.seed) * jitter;
-    const jy = Math.cos(t*1.55 + n.seed) * jitter;
-    const x = cx + Math.cos(n.th)*r + jx;
-    const y = cy + Math.sin(n.th)*r + jy;
-    out[i] = {x,y,hue:n.hue};
+    const n=nodes[i], r=n.r0*p;
+    const jx=Math.sin(t*1.25+n.seed)*jitter;
+    const jy=Math.cos(t*1.55+n.seed)*jitter;
+    out[i]={ x:cx+Math.cos(n.th)*r+jx, y:cy+Math.sin(n.th)*r+jy, hue:n.hue };
   }
   return out;
 }
 
-function drawLinks(pts, p){
-  const linkR = baseR * LINK_RADIUS_FR;
-  const aBase = LINE_ALPHA_BASE + LINE_ALPHA_PULSE * (p-1)/PULSE_AMPL * 0.5;
-  ctx.lineWidth = Math.max(1, 0.9*dpr);
+function drawCoreGlow(p){
+  const r=baseR*1.18*p;
+  const g=ctx.createRadialGradient(cx,cy,r*0.06,cx,cy,r);
+  const F=CORE_STRENGTH;
+  g.addColorStop(0.00,`rgba(255,220,140,${0.30*F})`);
+  g.addColorStop(0.30,`rgba(240,110,200,${0.22*F})`);
+  g.addColorStop(0.65,`rgba(110,160,255,${0.16*F})`);
+  g.addColorStop(1.00,`rgba(10,18,36,0.00)`);
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r,0,TAU); ctx.fill();
+}
+
+function drawLinks(pts,p){
+  const linkR=baseR*LINK_RADIUS_FR;
+  const aBase=LINE_ALPHA_BASE + LINE_ALPHA_PULSE * (p-1)/PULSE_AMPL * 0.5;
+  ctx.lineWidth=Math.max(1,0.9*dpr);
   for(let i=0;i<pts.length;i++){
-    let links=0;
-    const a = pts[i];
+    let links=0; const a=pts[i];
     for(let j=i+1;j<pts.length && links<MAX_LINKS_NODE;j++){
-      const b = pts[j];
-      const dx=a.x-b.x, dy=a.y-b.y; const d=Math.hypot(dx,dy);
+      const b=pts[j], dx=a.x-b.x, dy=a.y-b.y, d=Math.hypot(dx,dy);
       if(d<linkR){
-        const t = 1 - d/linkR;
-        ctx.strokeStyle = `hsla(${((a.hue+b.hue)/2).toFixed(1)}, 85%, 75%, ${(aBase*(0.25+t*0.75)).toFixed(3)})`;
+        const t=1-d/linkR;
+        ctx.strokeStyle=`hsla(${((a.hue+b.hue)/2).toFixed(1)},85%,75%,${(aBase*(0.25+t*0.75)).toFixed(3)})`;
         ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
         links++;
       }
@@ -288,105 +264,51 @@ function drawLinks(pts, p){
   }
 }
 
-function drawNodes(pts, p){
-  const r = NODE_SIZE * dpr; // piccoli ma luminosi
-  ctx.shadowColor = 'rgba(255,255,255,0.28)';
-  ctx.shadowBlur  = 7 * dpr * (0.9 + 0.2*(p-1)/PULSE_AMPL);
-  for(const q of pts){
-    ctx.fillStyle = `hsl(${q.hue.toFixed(1)} ${SAT}% ${LUM + 10*(p-1)/PULSE_AMPL}%)`;
-    ctx.beginPath(); ctx.arc(q.x,q.y,r,0,TAU); ctx.fill();
-  }
-  ctx.shadowBlur = 0;
+function drawNodes(pts,p){
+  const r=NODE_SIZE*dpr;
+  ctx.shadowColor='rgba(255,255,255,0.28)';
+  ctx.shadowBlur=7*dpr*(0.9+0.2*(p-1)/PULSE_AMPL);
+  for(const q of pts){ ctx.fillStyle=`hsl(${q.hue.toFixed(1)} ${SAT}% ${LUM+10*(p-1)/PULSE_AMPL}%)`;
+    ctx.beginPath(); ctx.arc(q.x,q.y,r,0,TAU); ctx.fill(); }
+  ctx.shadowBlur=0;
 }
 
-// loop
-function step(){
-  const now = performance.now()/1000;
-  const p   = pulseAt(now);
+function clipCircle(radius){ ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,radius,0,TAU); ctx.clip(); }
 
+//// Loop
+function step(tms){
+  const now=tms/1000, p=pulseAt(now);
   ctx.clearRect(0,0,cvs.width,cvs.height);
-  clipCircle(baseR * 1.06 * p);
-
+  clipCircle(baseR*1.06*p);
   drawCoreGlow(p);
-
-  const pts = framePositions(now, p);
-  drawLinks(pts, p);
-  drawNodes(pts, p);
-
+  const pts=framePositions(now,p);
+  drawLinks(pts,p);
+  drawNodes(pts,p);
   ctx.restore();
   requestAnimationFrame(step);
 }
-requestAnimationFrame(step);
+
+//// Avvio
+function start(){ resize(); spawn(); requestAnimationFrame(step); }
+start();
+
+/* === CLICK: mostra info nodo nel pannello finestra === */
+const nodeInfoEl=document.getElementById('nodeInfo');
+const chatPanel=document.getElementById('chatPanel');
+const nodePanel=document.getElementById('nodePanel');
+cvs.addEventListener('click',(ev)=>{
+  const rect=cvs.getBoundingClientRect();
+  const x=ev.clientX-rect.left, y=ev.clientY-rect.top;
+  const t=performance.now()/1000, p=pulseAt(t), pts=framePositions(t,p);
+  let best=null, bestD=1e9;
+  for(const q of pts){ const d=Math.hypot(q.x-x,q.y-y); if(d<bestD){bestD=d; best=q;} }
+  if(best && bestD<baseR*0.12){
+    const text=`Nodo vicino: tonalità ${Math.round(best.hue)}°, legami locali visibili.`;
+    if(nodeInfoEl) nodeInfoEl.textContent=text;
+    if(nodePanel && chatPanel){ nodePanel.classList.add('active'); chatPanel.classList.remove('active'); }
+  }
+});
+/* ===================================================== */
 </script>
-
-  <div id="ailov-window" class="ailov-window">
-    <div class="toolbar">
-      <button id="btnVoice" title="Parla">🎙️</button>
-      <button id="btnChat" title="Chat">💬</button>
-      <button id="btnNode" title="Nodo">🔍</button>
-      <button id="btnClose" title="Chiudi">×</button>
-    </div>
-
-    <div id="content" class="content">
-      <div id="chatPanel" class="panel active">
-        <div id="log" class="log"></div>
-        <form id="promptBar" class="prompt">
-          <input id="prompt" autocomplete="off" placeholder="Scrivi o parla con AiLov…" />
-          <button type="submit">Invia</button>
-        </form>
-      </div>
-      <div id="nodePanel" class="panel">
-        <p id="nodeInfo">Tocca un nodo nella Nebula…</p>
-      </div>
-    </div>
-  </div>
-  </div> <!-- chiude .ailov-window -->
-
-  <!-- Script UI finestra AiLov -->
-  <script>
-    const btnVoice = document.getElementById('btnVoice');
-    const btnChat  = document.getElementById('btnChat');
-    const btnNode  = document.getElementById('btnNode');
-    const btnClose = document.getElementById('btnClose');
-    const windowEl = document.getElementById('ailov-window');
-    const chatPanel = document.getElementById('chatPanel');
-    const nodePanel = document.getElementById('nodePanel');
-    const nodeInfo  = document.getElementById('nodeInfo');
-
-    btnChat.onclick = () => { chatPanel.classList.add('active'); nodePanel.classList.remove('active'); };
-    btnNode.onclick = () => { nodePanel.classList.add('active'); chatPanel.classList.remove('active'); };
-    btnClose.onclick = () => { windowEl.style.display = 'none'; };
-
-    let recognition = null;
-    if ('webkitSpeechRecognition' in window) {
-      recognition = new webkitSpeechRecognition();
-      recognition.lang = 'it-IT';
-      recognition.onresult = (e) => {
-        const text = e.results[0][0].transcript;
-        addMessage('Tu', text);
-        addMessage('AiLov', rispondi(text));
-      };
-    }
-
-    btnVoice.onclick = () => {
-      if (recognition) recognition.start();
-      else alert("Riconoscimento vocale non supportato su questo dispositivo");
-    };
-
-    function addMessage(who, text) {
-      const log = document.getElementById('log');
-      const msg = document.createElement('div');
-      msg.className = 'msg';
-      msg.textContent = `${who}: ${text}`;
-      log.append(msg);
-      log.scrollTop = log.scrollHeight;
-    }
-
-    function rispondi(input) {
-      if (/ciao/i.test(input)) return "Ciao! 🌿 Come stai?";
-      if (/come/i.test(input)) return "Sto bene, grazie! La Nebula è viva stasera.";
-      return "Ricevuto. Tocca un nodo o fammi una domanda.";
-    }
-  </script>
 </body>
 </html>
