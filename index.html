@@ -415,26 +415,68 @@ cvs.addEventListener('click', (ev) => {
   }
 });
 
-/* --- Trascinamento finestra AiLov --- */
+/* --- Trascinamento finestra AiLov (mouse + touch) --- */
 (function makeDraggable(win) {
-  let isDown=false, startX=0, startY=0, startLeft=0, startTop=0;
-  const toolbar = win.querySelector('.toolbar');
-  toolbar.style.cursor = 'move';
-  toolbar.addEventListener('mousedown', e=>{
-    isDown=true; startX=e.clientX; startY=e.clientY;
-    const r=win.getBoundingClientRect(); startLeft=r.left; startTop=r.top;
-    win.style.transition='none';
-  });
-  document.addEventListener('mouseup', ()=> isDown=false);
-  document.addEventListener('mousemove', e=>{
-    if(!isDown) return;
-    const dx=e.clientX-startX, dy=e.clientY-startY;
-    win.style.left = startLeft + dx + 'px';
-    win.style.top  = startTop + dy + 'px';
-    win.style.transform='none';
-  });
-})(winEl);
+  const handle = win.querySelector('.toolbar');
 
+  let isDown = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
+
+  function begin(x, y){
+    isDown = true;
+    const r = win.getBoundingClientRect();
+    startLeft = r.left;
+    startTop  = r.top;
+    startX = x;
+    startY = y;
+
+    // sgancia dal centro e dal fondo
+    win.style.position  = 'fixed';
+    win.style.left      = startLeft + 'px';
+    win.style.top       = startTop  + 'px';
+    win.style.right     = '';
+    win.style.bottom    = '';
+    win.style.transform = 'none';
+    win.style.transition= 'none';
+  }
+
+  function move(x, y){
+    if (!isDown) return;
+    const pad = 8;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    // dimensioni attuali della finestra
+    const r = win.getBoundingClientRect();
+    const W = r.width, H = r.height;
+
+    let left = startLeft + (x - startX);
+    let top  = startTop  + (y - startY);
+
+    // limiti ai bordi
+    left = Math.max(pad, Math.min(vw - W - pad, left));
+    top  = Math.max(pad, Math.min(vh - H - pad, top));
+
+    win.style.left = left + 'px';
+    win.style.top  = top  + 'px';
+  }
+
+  function end(){ isDown = false; }
+
+  // mouse
+  handle.addEventListener('mousedown', e => { begin(e.clientX, e.clientY); e.preventDefault(); });
+  document.addEventListener('mousemove',  e => move(e.clientX, e.clientY));
+  document.addEventListener('mouseup',    end);
+
+  // touch
+  handle.addEventListener('touchstart', e => {
+    const t = e.touches[0]; begin(t.clientX, t.clientY);
+  }, {passive:true});
+  document.addEventListener('touchmove', e => {
+    if (!isDown || !e.touches || !e.touches[0]) return;
+    const t = e.touches[0]; move(t.clientX, t.clientY);
+  }, {passive:true});
+  document.addEventListener('touchend',  end, {passive:true});
+})(winEl);
 </script>
 </body>
 </html>
