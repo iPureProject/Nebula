@@ -5,6 +5,118 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>AiLov Nebula Console</title>
 <style>
+:root {
+  --bg0: #04070b;
+  --bg1: #0b1628;
+  --fg: #e9eefb;
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: radial-gradient(1200px 900px at 20% 10%, var(--bg1), var(--bg0));
+  color: var(--fg);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+/* Titolo poetico */
+.hero {
+  text-align: center;
+  padding: 20px;
+  position: fixed;
+  width: 100%;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  background: rgba(5, 10, 20, 0.4);
+  backdrop-filter: blur(6px);
+}
+.hero .name {
+  color: #8cb8ff;
+  font-weight: 700;
+}
+
+/* Nebula canvas */
+canvas#nebula {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  width: 100%; height: 100%;
+  display: block;
+}
+
+/* Finestra modulare AiLov */
+.ailov-window {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  width: 400px;
+  background: rgba(10, 14, 22, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 20;
+}
+
+/* Barra strumenti */
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.toolbar button {
+  background: rgba(255,255,255,0.08);
+  border: none;
+  color: white;
+  font-size: 18px;
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.toolbar button:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+/* Contenuti interni */
+.content {
+  padding: 12px;
+}
+.panel { display: none; }
+.panel.active { display: block; }
+
+.log {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+.msg { margin: 6px 0; }
+.prompt {
+  display: flex;
+  gap: 8px;
+}
+.prompt input {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(0,0,0,0.4);
+  color: var(--fg);
+}
+.prompt button {
+  background: #1f6fff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+}
   :root{ --bg0:#05070b; --bg1:#071020; --fg:#e9eefb; }
   html,body{height:100%;margin:0;background:radial-gradient(1200px 900px at 20% 10%, var(--bg1) 0%, var(--bg0) 55%, #00050a 100%);
     color:var(--fg); font:500 16px/1.5 Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
@@ -60,278 +172,76 @@
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>AiLov Nebula Console</header>
-    <canvas id="nebula"></canvas>
-<div id="ailov-console" class="console">
-  <div id="log" class="log" aria-live="polite"></div>
-  <form id="promptBar" class="prompt">
-    <button id="micBtn" type="button" class="ghost" title="Parla">🎤</button>
-    <input id="prompt" autocomplete="off" placeholder="Scrivi o parla con AiLov…" />
-    <button id="sendBtn" type="submit">Invia</button>
-  </form>
-</div>
-    <div class="hint">Ciao! Sono <b>AiLov</b>. Parliamo? ✨</div>
-<script>
-/* ====================== PARAMETRI ====================== */
-const PARTICLES        = 420;      // nodi (più alto = più denso)
-const MAX_LINKS_NODE   = 3;        // connessioni eleganti per nodo
-const LINK_RADIUS_FR   = 0.20;     // raggio connessioni (× baseR)
-const NODE_SIZE        = 1.2;      // raggio puntini (piccoli)
-const LINE_ALPHA_BASE  = 0.12;     // opacità linee base
-const LINE_ALPHA_PULSE = 0.08;     // extra durante il battito
-const SAT              = 92;       // saturazione HSL (vivace)
-const LUM              = 66;       // luminosità media HSL
-const CORE_STRENGTH    = 1.05;     // intensità glow centrale
+  <header class="hero">
+    <h1>Ciao, sono <span class="name">AiLov</span>. Parliamo? ✨</h1>
+  </header>
 
-// Battito calmo
-const PULSE_HZ   = 0.85;           // 0.7–1.1
-const PULSE_AMPL = 0.045;          // 0.03–0.07
-const JITTER_FR  = 0.010;          // micro tremolio (× baseR)
-const RADIUS_FR  = 0.38;           // raggio sfera vs lato min
-const DPR_CAP    = 2;              // per iPad performance
-/* ====================================================== */
+  <canvas id="nebula"></canvas>
 
-const cvs = document.getElementById('nebula');
-const ctx = cvs.getContext('2d');
+  <div id="ailov-window" class="ailov-window">
+    <div class="toolbar">
+      <button id="btnVoice" title="Parla">🎙️</button>
+      <button id="btnChat" title="Chat">💬</button>
+      <button id="btnNode" title="Nodo">🔍</button>
+      <button id="btnClose" title="Chiudi">×</button>
+    </div>
 
-let w=0,h=0,cx=0,cy=0, baseR=0, dpr=1;
+    <div id="content" class="content">
+      <div id="chatPanel" class="panel active">
+        <div id="log" class="log"></div>
+        <form id="promptBar" class="prompt">
+          <input id="prompt" autocomplete="off" placeholder="Scrivi o parla con AiLov…" />
+          <button type="submit">Invia</button>
+        </form>
+      </div>
+      <div id="nodePanel" class="panel">
+        <p id="nodeInfo">Tocca un nodo nella Nebula…</p>
+      </div>
+    </div>
+  </div>
+  const btnVoice = document.getElementById('btnVoice');
+const btnChat  = document.getElementById('btnChat');
+const btnNode  = document.getElementById('btnNode');
+const btnClose = document.getElementById('btnClose');
+const windowEl = document.getElementById('ailov-window');
+const chatPanel = document.getElementById('chatPanel');
+const nodePanel = document.getElementById('nodePanel');
+const nodeInfo = document.getElementById('nodeInfo');
 
-function resize(){
-  const rect = cvs.parentElement.getBoundingClientRect();
-  dpr = Math.min(window.devicePixelRatio||1, DPR_CAP);
-  cvs.width  = Math.max(320, Math.floor(rect.width  * dpr));
-  cvs.height = Math.max(240, Math.floor(rect.height * dpr));
-  cvs.style.width  = rect.width +"px";
-  cvs.style.height = rect.height+"px";
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  w = rect.width; h = rect.height; cx = w/2; cy = h/2;
-  baseR = Math.min(w,h) * RADIUS_FR;
-}
-window.addEventListener('resize', ()=>{ resize(); spawn(); }, {passive:true});
+btnChat.onclick = () => { chatPanel.classList.add('active'); nodePanel.classList.remove('active'); };
+btnNode.onclick = () => { nodePanel.classList.add('active'); chatPanel.classList.remove('active'); };
+btnClose.onclick = () => { windowEl.style.display = 'none'; };
 
-/* punti stabili: memorizziamo r0 + theta + seed (niente deriva cumulativa) */
-const nodes=[];
-function spawn(){
-  nodes.length=0;
-  for(let i=0;i<PARTICLES;i++){
-    const u = Math.random(), v = Math.random();
-    const r0 = Math.sqrt(u) * (baseR*0.98);    // uniforme nel disco
-    const th = 2*Math.PI*v;
-    const hue= (th*180/Math.PI + 360)%360;     // arcobaleno da angolo
-    nodes.push({r0: r0, th: th, hue: hue, seed: Math.random()*1000});
-  }
-}
-resize(); spawn();
-
-// battito sinusoidale → niente “buco nero”
-const TAU = Math.PI*2;
-function pulseAt(t){ return 1 + PULSE_AMPL * Math.sin(TAU*PULSE_HZ*t); }
-
-// clip circolare all’inizio di ogni frame
-function clipCircle(radius){
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, TAU);
-  ctx.clip();
+let recognition = null;
+if ('webkitSpeechRecognition' in window) {
+  recognition = new webkitSpeechRecognition();
+  recognition.lang = 'it-IT';
+  recognition.onresult = (e) => {
+    const text = e.results[0][0].transcript;
+    addMessage('Tu', text);
+    addMessage('AiLov', rispondi(text));
+  };
 }
 
-// glow centrale (nero-blu profondo intorno)
-function drawCoreGlow(p){
-  const r = baseR * 1.18 * p;
-  const g = ctx.createRadialGradient(cx,cy, r*0.06, cx,cy, r);
-  const F = CORE_STRENGTH;
-  g.addColorStop(0.00, `rgba(255,220,140,${0.30*F})`);
-  g.addColorStop(0.30, `rgba(240,110,200,${0.22*F})`);
-  g.addColorStop(0.65, `rgba(110,160,255,${0.16*F})`);
-  g.addColorStop(1.00, `rgba(10,18,36,0.00)`);
-  ctx.fillStyle = g;
-  ctx.beginPath(); ctx.arc(cx,cy,r,0,TAU); ctx.fill();
-}
-
-function framePositions(t, p){
-  const jitter = baseR * JITTER_FR;
-  const out = new Array(nodes.length);
-  for(let i=0;i<nodes.length;i++){
-    const n = nodes[i];
-    const r = n.r0 * p;
-    const jx = Math.sin(t*1.25 + n.seed) * jitter;
-    const jy = Math.cos(t*1.55 + n.seed) * jitter;
-    const x = cx + Math.cos(n.th)*r + jx;
-    const y = cy + Math.sin(n.th)*r + jy;
-    out[i] = {x,y,hue:n.hue};
-  }
-  return out;
-}
-
-function drawLinks(pts, p){
-  const linkR = baseR * LINK_RADIUS_FR;
-  const aBase = LINE_ALPHA_BASE + LINE_ALPHA_PULSE * (p-1)/PULSE_AMPL * 0.5;
-  ctx.lineWidth = Math.max(1, 0.9*dpr);
-  for(let i=0;i<pts.length;i++){
-    let links=0;
-    const a = pts[i];
-    for(let j=i+1;j<pts.length && links<MAX_LINKS_NODE;j++){
-      const b = pts[j];
-      const dx=a.x-b.x, dy=a.y-b.y; const d=Math.hypot(dx,dy);
-      if(d<linkR){
-        const t = 1 - d/linkR;
-        ctx.strokeStyle = `hsla(${((a.hue+b.hue)/2).toFixed(1)}, 85%, 75%, ${(aBase*(0.25+t*0.75)).toFixed(3)})`;
-        ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
-        links++;
-      }
-    }
-  }
-}
-
-function drawNodes(pts, p){
-  const r = NODE_SIZE * dpr; // piccoli ma luminosi
-  ctx.shadowColor = 'rgba(255,255,255,0.28)';
-  ctx.shadowBlur  = 7 * dpr * (0.9 + 0.2*(p-1)/PULSE_AMPL);
-  for(const q of pts){
-    ctx.fillStyle = `hsl(${q.hue.toFixed(1)} ${SAT}% ${LUM + 10*(p-1)/PULSE_AMPL}%)`;
-    ctx.beginPath(); ctx.arc(q.x,q.y,r,0,TAU); ctx.fill();
-  }
-  ctx.shadowBlur = 0;
-}
-
-// loop
-let last = performance.now()/1000;
-function step(){
-  const now = performance.now()/1000;
-  const p   = pulseAt(now);
-
-  ctx.clearRect(0,0,cvs.width,cvs.height);
-  clipCircle(baseR * 1.06 * p);   // cerchio perfetto
-
-  drawCoreGlow(p);
-
-  const pts = framePositions(now, p);
-  drawLinks(pts, p);
-  drawNodes(pts, p);
-
-  ctx.restore();                  // chiude la clip
-  requestAnimationFrame(step);
-}
-requestAnimationFrame(step);
-  // Finestra trasparente (overlay) 
-
-/* === AiLov Console (testo+voce+tap) === */
-const logEl    = document.getElementById('log');
-const promptEl = document.getElementById('prompt');
-const formEl   = document.getElementById('promptBar');
-const micBtn   = document.getElementById('micBtn');
-
-// memoria semplicissima in locale
-const memory = {
-  get name() { return localStorage.getItem('ailov_name') || null; },
-  set name(v){ localStorage.setItem('ailov_name', v); }
+btnVoice.onclick = () => {
+  if (recognition) recognition.start();
+  else alert("Riconoscimento vocale non supportato su questo dispositivo");
 };
 
-function appendMsg(role, text){
-  const row = document.createElement('div');
-  row.className = 'msg';
-  const tag = document.createElement('div');
-  tag.className = 'tag';
-  tag.textContent = role === 'you' ? 'Tu' : 'AiLov';
-  const bubble = document.createElement('div');
-  bubble.className = role === 'you' ? 'you' : 'ai';
-  bubble.textContent = text;
-  row.append(tag, bubble);
-  logEl.append(row);
-  logEl.scrollTop = logEl.scrollHeight;
+function addMessage(who, text) {
+  const log = document.getElementById('log');
+  const msg = document.createElement('div');
+  msg.className = 'msg';
+  msg.textContent = `${who}: ${text}`;
+  log.append(msg);
+  log.scrollTop = log.scrollHeight;
 }
 
-function speak(text){
-  if(!('speechSynthesis' in window)) return;
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'it-IT';
-  u.rate = 1.02; u.pitch = 1.0; u.volume = 1.0;
-  speechSynthesis.cancel(); speechSynthesis.speak(u);
+function rispondi(input) {
+  if (/ciao/i.test(input)) return "Ciao! 🌿 Come stai?";
+  if (/come/i.test(input)) return "Sto bene, grazie! La Nebula è viva stasera.";
+  return "Ricevuto. Tocca un nodo o fammi una domanda.";
 }
-
-function greet(){
-  if(memory.name){
-    const t = `Bentornata/o, ${memory.name}.`;
-    appendMsg('ai', t); speak(t);
-  }else{
-    const t = 'Ciao, sono AiLov. Dimmi il tuo nome: “mi chiamo …”.';
-    appendMsg('ai', t); speak(t);
-  }
-}
-greet();
-
-// regole minime: capisce “mi chiamo X”, “cosa vedi”, “ciao”
-function brain(input){
-  const msg = input.trim();
-  if(!msg) return null;
-
-  const m = msg.match(/mi chiamo\s+([a-zà-ù’' ]{2,})/i);
-  if(m){
-    const name = m[1].replace(/[’']/g,"'").trim();
-    memory.name = name.charAt(0).toUpperCase() + name.slice(1);
-    return `Piacere, ${memory.name}. Memorizzato.`;
-  }
-
-  if(/cosa (vedi|stai vedendo)/i.test(msg)){
-    return 'Vedo una rete colorata di concetti collegati — tocca un nodo per esplorarne i legami.';
-  }
-
-  if(/^ciao!?$|^hey|^salve/i.test(msg)){
-    return memory.name ? `Ciao ${memory.name}. Eccomi.` : 'Ciao! Eccomi.';
-  }
-
-  return 'Ricevuto. Vuoi chiedermi qualcosa o tocca un nodo nella Nebula.';
-}
-
-// invio testo
-formEl.addEventListener('submit', (e)=>{
-  e.preventDefault();
-  const q = promptEl.value;
-  appendMsg('you', q);
-  promptEl.value = '';
-  const a = brain(q);
-  if(a){ appendMsg('ai', a); speak(a); }
-});
-
-// microfono (se disponibile)
-let recognizing = false, rec = null;
-if('webkitSpeechRecognition' in window){
-  rec = new webkitSpeechRecognition();
-  rec.lang = 'it-IT'; rec.continuous = false; rec.interimResults = false;
-  rec.onresult = (ev)=>{
-    const txt = ev.results[0][0].transcript;
-    appendMsg('you', txt);
-    const a = brain(txt);
-    if(a){ appendMsg('ai', a); speak(a); }
-  };
-  rec.onend = ()=>{ recognizing = false; micBtn.textContent = '🎤'; };
-}
-micBtn.addEventListener('click', ()=>{
-  if(!rec){ appendMsg('ai','Microfono non disponibile su questo dispositivo.'); return; }
-  if(!recognizing){ recognizing = true; micBtn.textContent = '⏹'; rec.start(); }
-  else{ recognizing = false; micBtn.textContent = '🎤'; rec.stop(); }
-});
-
-// TAP SULLA NEBULA → descrivi nodo toccato
-cvs.addEventListener('click', (ev)=>{
-  const rect = cvs.getBoundingClientRect();
-  const x = ev.clientX - rect.left, y = ev.clientY - rect.top;
-  // trova il punto visivamente più vicino tra quelli già calcolati nell’ultimo frame
-  // (riuso dell’ultima disposizione: calcoliamola al volo come approx)
-  const pts = framePositions(performance.now()/1000, pulseAt(performance.now()/1000));
-  let best = null, bestD = 1e9;
-  for(const p of pts){
-    const d = Math.hypot(p.x - x, p.y - y);
-    if(d < bestD){ bestD = d; best = p; }
-  }
-  if(best && bestD < baseR * 0.12){
-    const text = `Nodo vicino: tonalità ${Math.round(best.hue)}°, legami visibili locali.`;
-    appendMsg('ai', text); speak(text);
-  }else{
-    appendMsg('ai','Tocca più vicino a un nodo luminoso.');
-  }
-});
 </script>
 </body>
 </html>
