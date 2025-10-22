@@ -199,49 +199,53 @@ canvas#nebula {
       </div>
     </div>
   </div>
-  const btnVoice = document.getElementById('btnVoice');
-const btnChat  = document.getElementById('btnChat');
-const btnNode  = document.getElementById('btnNode');
-const btnClose = document.getElementById('btnClose');
-const windowEl = document.getElementById('ailov-window');
-const chatPanel = document.getElementById('chatPanel');
-const nodePanel = document.getElementById('nodePanel');
-const nodeInfo = document.getElementById('nodeInfo');
+  </div> <!-- chiude .ailov-window -->
 
-btnChat.onclick = () => { chatPanel.classList.add('active'); nodePanel.classList.remove('active'); };
-btnNode.onclick = () => { nodePanel.classList.add('active'); chatPanel.classList.remove('active'); };
-btnClose.onclick = () => { windowEl.style.display = 'none'; };
+  <!-- Script UI finestra AiLov -->
+  <script>
+    const btnVoice = document.getElementById('btnVoice');
+    const btnChat  = document.getElementById('btnChat');
+    const btnNode  = document.getElementById('btnNode');
+    const btnClose = document.getElementById('btnClose');
+    const windowEl = document.getElementById('ailov-window');
+    const chatPanel = document.getElementById('chatPanel');
+    const nodePanel = document.getElementById('nodePanel');
+    const nodeInfo  = document.getElementById('nodeInfo');
 
-let recognition = null;
-if ('webkitSpeechRecognition' in window) {
-  recognition = new webkitSpeechRecognition();
-  recognition.lang = 'it-IT';
-  recognition.onresult = (e) => {
-    const text = e.results[0][0].transcript;
-    addMessage('Tu', text);
-    addMessage('AiLov', rispondi(text));
-  };
-}
+    btnChat.onclick = () => { chatPanel.classList.add('active'); nodePanel.classList.remove('active'); };
+    btnNode.onclick = () => { nodePanel.classList.add('active'); chatPanel.classList.remove('active'); };
+    btnClose.onclick = () => { windowEl.style.display = 'none'; };
 
-btnVoice.onclick = () => {
-  if (recognition) recognition.start();
-  else alert("Riconoscimento vocale non supportato su questo dispositivo");
-};
+    let recognition = null;
+    if ('webkitSpeechRecognition' in window) {
+      recognition = new webkitSpeechRecognition();
+      recognition.lang = 'it-IT';
+      recognition.onresult = (e) => {
+        const text = e.results[0][0].transcript;
+        addMessage('Tu', text);
+        addMessage('AiLov', rispondi(text));
+      };
+    }
 
-function addMessage(who, text) {
-  const log = document.getElementById('log');
-  const msg = document.createElement('div');
-  msg.className = 'msg';
-  msg.textContent = `${who}: ${text}`;
-  log.append(msg);
-  log.scrollTop = log.scrollHeight;
-}
+    btnVoice.onclick = () => {
+      if (recognition) recognition.start();
+      else alert("Riconoscimento vocale non supportato su questo dispositivo");
+    };
 
-function rispondi(input) {
-  if (/ciao/i.test(input)) return "Ciao! 🌿 Come stai?";
-  if (/come/i.test(input)) return "Sto bene, grazie! La Nebula è viva stasera.";
-  return "Ricevuto. Tocca un nodo o fammi una domanda.";
-}
-</script>
+    function addMessage(who, text) {
+      const log = document.getElementById('log');
+      const msg = document.createElement('div');
+      msg.className = 'msg';
+      msg.textContent = `${who}: ${text}`;
+      log.append(msg);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function rispondi(input) {
+      if (/ciao/i.test(input)) return "Ciao! 🌿 Come stai?";
+      if (/come/i.test(input)) return "Sto bene, grazie! La Nebula è viva stasera.";
+      return "Ricevuto. Tocca un nodo o fammi una domanda.";
+    }
+  </script>
 </body>
 </html>
