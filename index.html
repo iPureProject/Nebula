@@ -396,6 +396,10 @@ btnVoice.onclick = ()=>{
 
 /* CLICK SULLA NEBULA → mostra info nel pannello Nodo */
 cvs.addEventListener('click', (ev)=>{
+cvs.addEventListener('touchstart', (ev) => {
+  const t = ev.touches[0];
+  cvs.dispatchEvent(new MouseEvent('click', {clientX: t.clientX, clientY: t.clientY}));
+}, {passive:true});
   const rect=cvs.getBoundingClientRect();
   const x=ev.clientX-rect.left, y=ev.clientY-rect.top;
   const t=performance.now()/1000, p=pulseAt(t), pts=framePositions(t,p);
