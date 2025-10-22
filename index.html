@@ -285,6 +285,43 @@ function framePositions(t, p){
   return out;
 }
 
+  /* === Interazione manuale per ruotare la Nebula === */
+let drag = false, lastX = 0, rotOffset = 0;
+
+cvs.addEventListener('mousedown', e => {
+  drag = true;
+  lastX = e.clientX;
+});
+
+cvs.addEventListener('mouseup', () => drag = false);
+cvs.addEventListener('mouseleave', () => drag = false);
+
+cvs.addEventListener('mousemove', e => {
+  if (!drag) return;
+  const dx = e.clientX - lastX;
+  lastX = e.clientX;
+  rotOffset += dx * 0.002;   // sensibilità rotazione manuale
+});
+
+cvs.addEventListener('touchstart', e => {
+  drag = true;
+  lastX = e.touches[0].clientX;
+}, { passive: true });
+
+cvs.addEventListener('touchmove', e => {
+  if (!drag) return;
+  const dx = e.touches[0].clientX - lastX;
+  lastX = e.touches[0].clientX;
+  rotOffset += dx * 0.002;
+}, { passive: true });
+
+cvs.addEventListener('touchend', () => drag = false);
+
+/* modifica la linea dentro framePositions che calcola l’angolo “a”:
+   cambia “const a = n.th + rot;” in “const a = n.th + rot + rotOffset;”
+   così la rotazione manuale si somma a quella automatica.
+*/
+  
 function drawCoreGlow(p){
   const r=baseR*1.18*p;
   const g=ctx.createRadialGradient(cx,cy,r*0.06,cx,cy,r);
@@ -439,6 +476,33 @@ cvs.addEventListener('click', (ev) => {
   }
 });
 /* ======================================================== */
+/* === Trascinamento finestra AiLov === */
+(function makeDraggable(win) {
+  let isDown = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
+
+  const toolbar = win.querySelector('.toolbar');
+  toolbar.style.cursor = 'move';
+
+  toolbar.addEventListener('mousedown', e => {
+    isDown = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    const rect = win.getBoundingClientRect();
+    startLeft = rect.left;
+    startTop = rect.top;
+    win.style.transition = 'none';
+  });
+
+  document.addEventListener('mouseup', () => isDown = false);
+  document.addEventListener('mousemove', e => {
+    if (!isDown) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    win.style.left = startLeft + dx + 'px';
+    win.style.top  = startTop + dy + 'px';
+    win.style.transform = 'none';
+  });
+})(document.getElementById('ailov-window'));
 </script>
 </body>
 </html>
