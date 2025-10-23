@@ -373,23 +373,30 @@ function speak(text) {
 btnChat.onclick = () => { chatPanel.classList.add('active'); nodePanel.classList.remove('active'); };
 btnNode.onclick = () => { nodePanel.classList.add('active'); chatPanel.classList.remove('active'); };
 btnClose.onclick= () => { winEl.style.display = 'none'; };
+  none'; };
   
-// --- Voce in uscita (TTS) ---
+// --- Voce in uscita (TTS) - BLOCCO UNICO ---
 const synth = window.speechSynthesis || null;
 let ttsOn = true; // voce attiva di default
-// warm-up voci (iOS Safari)
-if (synth) {
-  const warmup = () => { /* no-op: forza il load delle voci */ };
-  if ('onvoiceschanged' in synth)
 
 function speak(text){
-  if(!synth || !ttsOn) return;
-  try { synth.cancel(); } catch {}
+  if (!synth || !ttsOn) return;
+  try { synth.cancel(); } catch(e){}  // interrompi eventuale parlato in corso
   const u = new SpeechSynthesisUtterance(text);
   u.lang = 'it-IT';
   u.rate = 1;
   u.pitch = 1;
   synth.speak(u);
+}
+
+// appendMsg: parla solo quando è AiLov a rispondere
+function appendMsg(role, text){
+  const row = document.createElement('div');
+  row.className = 'msg';
+  row.textContent = (role === 'you' ? 'Tu: ' : 'AiLov: ') + text;
+  logEl.append(row);
+  logEl.scrollTop = logEl.scrollHeight;
+  if (role === 'ai') speak(text);
 }
 function appendMsg(role, text){
   const row = document.createElement('div');
