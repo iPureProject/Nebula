@@ -210,7 +210,7 @@ canvas#nebula {
 const PARTICLES=420, MAX_LINKS_NODE=3, LINK_RADIUS_FR=0.20, NODE_SIZE=1.2;
 const LINE_ALPHA_BASE=0.12, LINE_ALPHA_PULSE=0.08, SAT=92, LUM=66, CORE_STRENGTH=1.05;
 const PULSE_HZ=0.85, PULSE_AMPL=0.055, JITTER_FR=0.012, RADIUS_FR=0.38, DPR_CAP=2;
-const ROTATE_HZ = 0.010;   // giri al secondo (0.010 ≈ 1 giro ogni ~100s)
+const ROTATE_HZ = 0.010;
 
 //// Canvas
 const cvs = document.getElementById('nebula');
@@ -264,7 +264,7 @@ function framePositions(t, p){
   for (let i = 0; i < nodes.length; i++){
     const n  = nodes[i];
     const r  = n.r0 * p;
-    const a  = n.th + rot + rotOffset; // auto + manuale
+    const a  = n.th + rot + rotOffset;
     const jx = Math.sin(t*1.25 + n.seed) * jitter;
     const jy = Math.cos(t*1.55 + n.seed) * jitter;
     out[i] = { x: cx + Math.cos(a)*r + jx, y: cy + Math.sin(a)*r + jy, hue: n.hue };
@@ -299,7 +299,6 @@ function drawCoreGlow(p){
   g.addColorStop(1.00,`rgba(10,18,36,0.00)`);
   ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r,0,TAU); ctx.fill();
 }
-
 function drawLinks(pts,p){
   const linkR=baseR*LINK_RADIUS_FR;
   const aBase=LINE_ALPHA_BASE + LINE_ALPHA_PULSE * (p-1)/PULSE_AMPL * 0.5;
@@ -317,7 +316,6 @@ function drawLinks(pts,p){
     }
   }
 }
-
 function drawNodes(pts,p){
   const r=NODE_SIZE*dpr;
   ctx.shadowColor='rgba(255,255,255,0.28)';
@@ -328,7 +326,6 @@ function drawNodes(pts,p){
   }
   ctx.shadowBlur=0;
 }
-
 function clipCircle(radius){ ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,radius,0,TAU); ctx.clip(); }
 
 function step(tms){
@@ -346,7 +343,7 @@ function step(tms){
 function start(){ resize(); spawn(); requestAnimationFrame(step); }
 start();
 
-/* --- UI finestra: chat + voce + pannelli --- */
+/* === UI finestra: chat + voce + pannelli === */
 const winEl     = document.getElementById('ailov-window');
 const btnVoice  = document.getElementById('btnVoice');
 const btnChat   = document.getElementById('btnChat');
@@ -358,38 +355,23 @@ const nodeInfoEl= document.getElementById('nodeInfo');
 const logEl     = document.getElementById('log');
 const formEl    = document.getElementById('promptBar');
 const inputEl   = document.getElementById('prompt');
-// --- Voce in uscita (TTS)
-const synth = window.speechSynthesis || null;
-function speak(text) {
-  if (!synth) return;                 // se il browser non la supporta, esci
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'it-IT';
-  u.rate = 1;
-  u.pitch = 1;
-  try { synth.cancel(); } catch(e){}  // stop eventuale parlato precedente
-  synth.speak(u);
-}
 
 btnChat.onclick = () => { chatPanel.classList.add('active'); nodePanel.classList.remove('active'); };
 btnNode.onclick = () => { nodePanel.classList.add('active'); chatPanel.classList.remove('active'); };
 btnClose.onclick= () => { winEl.style.display = 'none'; };
-  none'; };
-  
-// --- Voce in uscita (TTS) - BLOCCO UNICO ---
-const synth = window.speechSynthesis || null;
-let ttsOn = true; // voce attiva di default
 
+/* --- Voce in uscita (TTS) - BLOCCO UNICO --- */
+const synth = window.speechSynthesis || null;
+let ttsOn = true;
 function speak(text){
   if (!synth || !ttsOn) return;
-  try { synth.cancel(); } catch(e){}  // interrompi eventuale parlato in corso
+  try { synth.cancel(); } catch(e){}
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'it-IT';
-  u.rate = 1;
-  u.pitch = 1;
+  u.lang = 'it-IT'; u.rate = 1; u.pitch = 1;
   synth.speak(u);
 }
 
-// appendMsg: parla solo quando è AiLov a rispondere
+/* --- Messaggi + chat --- */
 function appendMsg(role, text){
   const row = document.createElement('div');
   row.className = 'msg';
@@ -398,26 +380,16 @@ function appendMsg(role, text){
   logEl.scrollTop = logEl.scrollHeight;
   if (role === 'ai') speak(text);
 }
-function appendMsg(role, text){
-  const row = document.createElement('div');
-  row.className = 'msg';
-  row.textContent = (role === 'you' ? 'Tu: ' : 'AiLov: ') + text;
-  logEl.append(row);
-  logEl.scrollTop = logEl.scrollHeight;
 
-  // parla solo quando è AiLov a rispondere
-  if (role === 'ai') speak(text);
-}
-  formEl.addEventListener('submit', (e)=>{
+formEl.addEventListener('submit', (e)=>{
   e.preventDefault();
-  const q = inputEl.value; 
-  inputEl.value = '';
+  const q = inputEl.value; inputEl.value = '';
   if (!q.trim()) return;
-
   appendMsg('you', q);
   const a = brain(q);
   if (a) appendMsg('ai', a);
 });
+
 function brain(msg){
   msg = msg.trim();
   if(!msg) return null;
@@ -427,101 +399,74 @@ function brain(msg){
   return 'Ricevuto. Tocca un nodo o fammi una domanda.';
 }
 
-// --- voce ---
+/* --- voce in entrata (STT) --- */
 let rec = null, recognizing = false;
-
 if ('webkitSpeechRecognition' in window) {
   rec = new webkitSpeechRecognition();
-  rec.lang = 'it-IT';
-  rec.continuous = false;
-  rec.interimResults = false;
-
+  rec.lang = 'it-IT'; rec.continuous = false; rec.interimResults = false;
   rec.onresult = (ev) => {
     const txt = ev.results[0][0].transcript;
     appendMsg('you', txt);
     const a = brain(txt);
     if (a) appendMsg('ai', a);
   };
-
   rec.onend = () => { recognizing = false; };
 }
-
 btnVoice.onclick = () => {
-  if (!rec) {
-    appendMsg('ai', 'Microfono non disponibile su questo dispositivo.');
-    return;
-  }
-  if (!recognizing) {
-    recognizing = true;
-    rec.start();
-  } else {
-    recognizing = false;
-    rec.stop();
-  }
+  if (!rec){ appendMsg('ai','Microfono non disponibile su questo dispositivo.'); return; }
+  if (!recognizing){ recognizing = true; rec.start(); } else { recognizing = false; rec.stop(); }
 };
 
 /* --- Trascinamento finestra AiLov (mouse + touch) --- */
 (function makeDraggable(win) {
   const handle = win.querySelector('.toolbar');
+  let isDown=false, startX=0, startY=0, startLeft=0, startTop=0;
 
-  let isDown = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
-
-  function begin(x, y){
-    isDown = true;
-    const r = win.getBoundingClientRect();
-    startLeft = r.left;
-    startTop  = r.top;
-    startX = x;
-    startY = y;
-
-    // sgancia dal centro e dal fondo
-    win.style.position  = 'fixed';
-    win.style.left      = startLeft + 'px';
-    win.style.top       = startTop  + 'px';
-    win.style.right     = '';
-    win.style.bottom    = '';
-    win.style.transform = 'none';
-    win.style.transition= 'none';
+  function begin(x,y){
+    isDown=true;
+    const r=win.getBoundingClientRect();
+    startLeft=r.left; startTop=r.top; startX=x; startY=y;
+    win.style.position='fixed';
+    win.style.left=startLeft+'px'; win.style.top=startTop+'px';
+    win.style.right=''; win.style.bottom=''; win.style.transform='none'; win.style.transition='none';
   }
-
-  function move(x, y){
-    if (!isDown) return;
-    const pad = 8;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-
-    // dimensioni attuali della finestra
-    const r = win.getBoundingClientRect();
-    const W = r.width, H = r.height;
-
-    let left = startLeft + (x - startX);
-    let top  = startTop  + (y - startY);
-
-    // limiti ai bordi
-    left = Math.max(pad, Math.min(vw - W - pad, left));
-    top  = Math.max(pad, Math.min(vh - H - pad, top));
-
-    win.style.left = left + 'px';
-    win.style.top  = top  + 'px';
+  function move(x,y){
+    if(!isDown) return;
+    const pad=8, vw=window.innerWidth, vh=window.innerHeight;
+    const r=win.getBoundingClientRect(), W=r.width, H=r.height;
+    let left=startLeft+(x-startX), top=startTop+(y-startY);
+    left=Math.max(pad, Math.min(vw-W-pad, left));
+    top =Math.max(pad, Math.min(vh-H-pad, top));
+    win.style.left=left+'px'; win.style.top=top+'px';
   }
+  function end(){ isDown=false; }
 
-  function end(){ isDown = false; }
+  handle.addEventListener('mousedown', e=>{ begin(e.clientX,e.clientY); e.preventDefault(); });
+  document.addEventListener('mousemove', e=>move(e.clientX,e.clientY));
+  document.addEventListener('mouseup', end);
 
-  // mouse
-  handle.addEventListener('mousedown', e => { begin(e.clientX, e.clientY); e.preventDefault(); });
-  document.addEventListener('mousemove',  e => move(e.clientX, e.clientY));
-  document.addEventListener('mouseup',    end);
-
-  // touch
-  handle.addEventListener('touchstart', e => {
-    const t = e.touches[0]; begin(t.clientX, t.clientY);
+  handle.addEventListener('touchstart', e=>{ const t=e.touches[0]; begin(t.clientX,t.clientY); }, {passive:true});
+  document.addEventListener('touchmove', e=>{
+    if(!isDown || !e.touches || !e.touches[0]) return;
+    const t=e.touches[0]; move(t.clientX,t.clientY);
   }, {passive:true});
-  document.addEventListener('touchmove', e => {
-    if (!isDown || !e.touches || !e.touches[0]) return;
-    const t = e.touches[0]; move(t.clientX, t.clientY);
-  }, {passive:true});
-  document.addEventListener('touchend',  end, {passive:true});
+  document.addEventListener('touchend', end, {passive:true});
 })(winEl);
+
+/* --- Click sulla Nebula → info nodo (optional) --- */
+cvs.addEventListener('click', (ev) => {
+  const rect = cvs.getBoundingClientRect();
+  const x = ev.clientX - rect.left;
+  const y = ev.clientY - rect.top;
+  const t = performance.now()/1000, p = pulseAt(t), pts = framePositions(t,p);
+  let best=null, bestD=1e9;
+  for (const q of pts){ const d=Math.hypot(q.x-x,q.y-y); if(d<bestD){bestD=d; best=q;} }
+  if(best && bestD<baseR*0.12){
+    document.getElementById('nodeInfo').textContent =
+      `Nodo vicino: tonalità ${Math.round(best.hue)}°, legami locali visibili.`;
+    btnNode.click();
+  }
+});
 </script>
 </body>
 </html>
